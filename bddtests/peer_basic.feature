@@ -313,7 +313,7 @@ Feature: lanching 3 peers
         | foobar |
       Then I should get a JSON response with "OK" = "[{"columns":[{"Value":{"String_":"foobar"}}]}]"
 
-@doNotDecompose
+#    @doNotDecompose
 #    @wip
 	Scenario: chaincode example 01 single peer erroneous TX
 	    Given we compose "docker-compose-1.yml"
