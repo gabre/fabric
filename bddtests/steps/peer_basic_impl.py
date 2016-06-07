@@ -214,6 +214,11 @@ def step_impl(context):
     else:
         fail('chaincodeSpec not in context')
 
+@when(u'I invoke chaincode "{chaincodeName}" function name "{functionName}" on "{containerName}" with "{uuidGenAlg}"')
+def step_impl(context, chaincodeName, functionName, containerName, uuidGenAlg):
+    assert 'chaincodeSpec' in context, "chaincodeSpec not found in context"
+    invokeChaincode(context, "invoke", functionName, containerName, uuidGenAlg)
+
 @when(u'I invoke chaincode "{chaincodeName}" function name "{functionName}" on "{containerName}" "{times}" times')
 def step_impl(context, chaincodeName, functionName, containerName, times):
     assert 'chaincodeSpec' in context, "chaincodeSpec not found in context"
@@ -243,7 +248,7 @@ def step_impl(context, chaincodeName, functionName, containerName):
 def step_impl(context, chaincodeName, functionName, containerName):
     invokeChaincode(context, "query", functionName, containerName)
 
-def invokeChaincode(context, devopsFunc, functionName, containerName):
+def invokeChaincode(context, devopsFunc, functionName, containerName, uuidGenAlg=None):
     assert 'chaincodeSpec' in context, "chaincodeSpec not found in context"
     # Update the chaincodeSpec ctorMsg for invoke
     args = []
@@ -256,6 +261,8 @@ def invokeChaincode(context, devopsFunc, functionName, containerName):
     chaincodeInvocationSpec = {
         "chaincodeSpec" : context.chaincodeSpec
     }
+    if uuidGenAlg is not None:
+	chaincodeInvocationSpec['uuidGenerationAlg'] = uuidGenAlg
     ipAddress = ipFromContainerNamePart(containerName, context.compose_containers)
     request_url = buildUrl(context, ipAddress, "/devops/{0}".format(devopsFunc))
     print("{0} POSTing path = {1}".format(currentTime(), request_url))
@@ -377,6 +384,11 @@ def step_impl(context, seconds):
             raise Exception("Max time exceeded waiting for transactions with current response map = {0}".format(respMap))
     print("Result of request to all peers = {0}".format(respMap))
     print("")
+
+@then(u'I check the transaction ID if it is "{tUUID}"')
+def step_impl(context, tUUID):
+    assert 'transactionID' in context, "transactionID not found in context"
+    assert context.transactionID == tUUID, "transactionID is not tUUID"
 
 def getContainerDataValuesFromContext(context, aliases, callback):
     """Returns the IPAddress based upon a name part of the full container name"""
