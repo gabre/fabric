@@ -325,11 +325,11 @@ ledger:
       # Deploy chaincodes into the genesis block
       chaincodes:
 
-        noop_syscc:
-          path: github.com/hyperledger/fabric/core/system_chaincode/noop
-          type: GOLANG
-          constructor:
-            args:
+        #noop_syscc:
+        #  path: github.com/hyperledger/fabric/core/system_chaincode/noop
+        #  type: GOLANG
+        #  constructor:
+        #    args:
 
 
         #sample_syscc:
