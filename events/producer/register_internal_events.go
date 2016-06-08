@@ -27,8 +27,9 @@ import (
 
 //----Event Types -----
 const (
-	RegisterType = "register"
-	BlockType    = "block"
+	RegisterType  = "register"
+	RejectionType = "rejection"
+	BlockType     = "block"
 )
 
 func getMessageType(e *pb.Event) string {
@@ -37,6 +38,8 @@ func getMessageType(e *pb.Event) string {
 		return "register"
 	case *pb.Event_Block:
 		return "block"
+	case *pb.Event_Rejection:
+		return "rejection"
 	case *pb.Event_Generic:
 		return "generic"
 	default:
@@ -47,5 +50,6 @@ func getMessageType(e *pb.Event) string {
 //should be called at init time to register supported internal events
 func addInternalEventTypes() {
 	AddEventType(BlockType)
+	AddEventType(RejectionType)
 	AddEventType(RegisterType)
 }

@@ -24,3 +24,8 @@ import (
 func CreateBlockEvent(te *ehpb.Block) *ehpb.Event {
 	return &ehpb.Event{&ehpb.Event_Block{Block: te}}
 }
+
+//CreateRejectionEvent creates an Event from TxResults
+func CreateRejectionEvent(txResults []*ehpb.TransactionResult) *ehpb.Event {
+	return &ehpb.Event{&ehpb.Event_Rejection{Rejection: &ehpb.Rejection{TransactionResults: txResults}}}
+}

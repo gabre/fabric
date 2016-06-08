@@ -140,7 +140,7 @@ func (ledger *Ledger) GetTXBatchPreviewBlockInfo(id interface{},
 // CommitTxBatch - gets invoked when the current transaction-batch needs to be committed
 // This function returns successfully iff the transactions details and state changes (that
 // may have happened during execution of this transaction-batch) have been committed to permanent storage
-func (ledger *Ledger) CommitTxBatch(id interface{}, transactions []*protos.Transaction, transactionResults []*protos.TransactionResult, metadata []byte) error {
+func (ledger *Ledger) CommitTxBatch(id interface{}, transactions []*protos.Transaction, transactionErrors []*protos.TransactionResult, metadata []byte) error {
 	err := ledger.checkValidIDCommitORRollback(id)
 	if err != nil {
 		return err
@@ -177,8 +177,9 @@ func (ledger *Ledger) CommitTxBatch(id interface{}, transactions []*protos.Trans
 	ledger.blockchain.blockPersistenceStatus(true)
 
 	sendProducerBlockEvent(block)
-	if len(transactionResults) != 0 {
-		ledgerLogger.Debug("There were some erroneous transactions. We need to send a 'TX rejected' message here.")
+	if len(transactionErrors) != 0 {
+		ledgerLogger.Debug("There were some erroneous transactions. We need to send a 'TX rejected' message.")
+		sendTxsRejectedEvent(transactionErrors)
 	}
 	return nil
 }
@@ -453,9 +454,13 @@ func (ledger *Ledger) checkValidIDCommitORRollback(id interface{}) error {
 }
 
 func (ledger *Ledger) resetForNextTxGroup(txCommited bool) {
-	ledgerLogger.Debug("resetting ledger state for next transaction batch")
 	ledger.currentID = nil
 	ledger.state.ClearInMemoryChanges(txCommited)
+}
+
+func sendTxsRejectedEvent(txErrors []*protos.TransactionResult) {
+	ledgerLogger.Debug("Sending rejection")
+	producer.Send(producer.CreateRejectionEvent(txErrors))
 }
 
 func sendProducerBlockEvent(block *protos.Block) {

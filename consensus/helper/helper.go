@@ -184,18 +184,16 @@ func (h *Helper) ExecTxs(id interface{}, txs []*pb.Transaction) ([]byte, error) 
 	h.curBatch = append(h.curBatch, succeededTxs...) // TODO, remove after issue 579
 
 	//copy errs to result
-	txresults := make([]*pb.TransactionResult, len(txerrs))
+	txerrresults := make([]*pb.TransactionResult, 0, len(txerrs))
 
 	//process errors for each transaction
 	for i, e := range txerrs {
 		//NOTE- it'll be nice if we can have error values. For now success == 0, error == 1
 		if txerrs[i] != nil {
-			txresults[i] = &pb.TransactionResult{Uuid: txs[i].Uuid, Error: e.Error(), ErrorCode: 1}
-		} else {
-			txresults[i] = &pb.TransactionResult{Uuid: txs[i].Uuid}
+			txerrresults = append(txerrresults, &pb.TransactionResult{Uuid: txs[i].Uuid, Error: e.Error(), ErrorCode: 1})
 		}
 	}
-	h.curBatchErrs = append(h.curBatchErrs, txresults...) // TODO, remove after issue 579
+	h.curBatchErrs = append(h.curBatchErrs, txerrresults...) // TODO, remove after issue 579
 
 	return res, err
 }

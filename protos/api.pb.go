@@ -33,6 +33,7 @@ It has these top-level messages:
 	BuildResult
 	Interest
 	Register
+	Rejection
 	Generic
 	Event
 	Transaction

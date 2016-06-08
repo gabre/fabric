@@ -71,6 +71,23 @@ func (m *Register) GetEvents() []*Interest {
 	return nil
 }
 
+// Rejection is sent by consumers for erroneous transaction rejection events
+// string type - "rejection"
+type Rejection struct {
+	TransactionResults []*TransactionResult `protobuf:"bytes,1,rep,name=transactionResults" json:"transactionResults,omitempty"`
+}
+
+func (m *Rejection) Reset()         { *m = Rejection{} }
+func (m *Rejection) String() string { return proto.CompactTextString(m) }
+func (*Rejection) ProtoMessage()    {}
+
+func (m *Rejection) GetTransactionResults() []*TransactionResult {
+	if m != nil {
+		return m.TransactionResults
+	}
+	return nil
+}
+
 // ---------- producer events ---------
 // Generic is used for encoding payload as JSON or raw bytes
 // string type - "generic"
@@ -93,6 +110,7 @@ type Event struct {
 	//	*Event_Register
 	//	*Event_Block
 	//	*Event_Generic
+	//	*Event_Rejection
 	Event isEvent_Event `protobuf_oneof:"Event"`
 }
 
@@ -113,10 +131,14 @@ type Event_Block struct {
 type Event_Generic struct {
 	Generic *Generic `protobuf:"bytes,3,opt,name=generic,oneof"`
 }
+type Event_Rejection struct {
+	Rejection *Rejection `protobuf:"bytes,4,opt,name=rejection,oneof"`
+}
 
-func (*Event_Register) isEvent_Event() {}
-func (*Event_Block) isEvent_Event()    {}
-func (*Event_Generic) isEvent_Event()  {}
+func (*Event_Register) isEvent_Event()  {}
+func (*Event_Block) isEvent_Event()     {}
+func (*Event_Generic) isEvent_Event()   {}
+func (*Event_Rejection) isEvent_Event() {}
 
 func (m *Event) GetEvent() isEvent_Event {
 	if m != nil {
@@ -146,12 +168,20 @@ func (m *Event) GetGeneric() *Generic {
 	return nil
 }
 
+func (m *Event) GetRejection() *Rejection {
+	if x, ok := m.GetEvent().(*Event_Rejection); ok {
+		return x.Rejection
+	}
+	return nil
+}
+
 // XXX_OneofFuncs is for the internal use of the proto package.
 func (*Event) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), []interface{}) {
 	return _Event_OneofMarshaler, _Event_OneofUnmarshaler, []interface{}{
 		(*Event_Register)(nil),
 		(*Event_Block)(nil),
 		(*Event_Generic)(nil),
+		(*Event_Rejection)(nil),
 	}
 }
 
@@ -172,6 +202,11 @@ func _Event_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
 	case *Event_Generic:
 		b.EncodeVarint(3<<3 | proto.WireBytes)
 		if err := b.EncodeMessage(x.Generic); err != nil {
+			return err
+		}
+	case *Event_Rejection:
+		b.EncodeVarint(4<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.Rejection); err != nil {
 			return err
 		}
 	case nil:
@@ -207,6 +242,14 @@ func _Event_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) 
 		msg := new(Generic)
 		err := b.DecodeMessage(msg)
 		m.Event = &Event_Generic{msg}
+		return true, err
+	case 4: // Event.rejection
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(Rejection)
+		err := b.DecodeMessage(msg)
+		m.Event = &Event_Rejection{msg}
 		return true, err
 	default:
 		return false, nil
