@@ -15,6 +15,7 @@
 #
 
 import os
+import os.path
 import re
 import time
 import copy
@@ -450,6 +451,15 @@ def step_impl(context, seconds):
     print("")
 
 
+@then(u'I should get a rejection message in the listener after stopping it')
+def step_impl(context):
+    assert "eventlistener" in context, "no eventlistener is started"
+    context.eventlistener.terminate()
+    output = context.eventlistener.stdout.read()
+    rejection = "Received rejected transaction"
+    assert rejection in output, "no rejection message was found"
+    assert output.count(rejection) == 1, "only one rejection message should be found"
+
 
 @when(u'I query chaincode "{chaincodeName}" function name "{functionName}" on all peers')
 def step_impl(context, chaincodeName, functionName):
@@ -606,6 +616,16 @@ def step_impl(context):
        #remove from the containerDataList
        context.compose_containers = [containerData for  containerData in context.compose_containers if containerData.composeService != service]
     print("After stopping, the container service list is = {0}".format([containerData.composeService for  containerData in context.compose_containers]))
+
+
+@given(u'I start a listener')
+def step_impl(context):
+    gopath = os.environ.get('GOPATH')
+    assert gopath is not None, "Please set GOPATH properly!"
+    listener = os.path.join(gopath, "src/github.com/hyperledger/fabric/examples/events/block-listener/block-listener")
+    assert os.path.isfile(listener), "Please build the block-listener binary!"
+    bdd_test_util.start_background_process(context, "eventlistener", [listener, "-listen-to-rejections"] )
+
 
 @given(u'I start peers')
 def step_impl(context):

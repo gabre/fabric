@@ -42,3 +42,7 @@ def cli_call(context, arg_list, expect_success=True):
         if expect_success:
             raise subprocess.CalledProcessError(p.returncode, arg_list, output)
     return output, error, p.returncode
+
+def start_background_process(context, program_name, arg_list):
+    p = subprocess.Popen(arg_list, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    setattr(context, program_name, p)

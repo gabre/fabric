@@ -251,7 +251,6 @@ func (m *ChaincodeDeploymentSpec) GetEffectiveDate() *google_protobuf.Timestamp 
 // Carries the chaincode function and its arguments.
 type ChaincodeInvocationSpec struct {
 	ChaincodeSpec *ChaincodeSpec `protobuf:"bytes,1,opt,name=chaincodeSpec" json:"chaincodeSpec,omitempty"`
-	// ChaincodeInput message = 2;
 	// This field can contain a user-specified UUID generation algorithm
 	// If supplied, this will be used to generate a UUID
 	// If not supplied (left empty), a random UUID will be generated
