@@ -918,3 +918,14 @@ Feature: lanching 3 peers
         |          ComposeFile                       |   WaitTime   |
 #       |   docker-compose-4-consensus-classic.yml   |      60      |
         |   docker-compose-4-consensus-batch.yml     |      60      |
+
+
+#    noop
+#    @doNotDecompose
+  Scenario: noop chaincode test
+    Given we compose "docker-compose-1-noopchaincode.yml"
+      When I invoke master chaincode "noop" function name "execute" on "vp0"
+        |arg1|
+        | aa |
+      Then I should have received a transactionID
+
