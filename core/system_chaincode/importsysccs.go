@@ -18,8 +18,8 @@ package system_chaincode
 
 import (
 	//import system chain codes here
+	"github.com/hyperledger/fabric/bddtests/syschaincode/noop"
 	"github.com/hyperledger/fabric/core/system_chaincode/api"
-	"github.com/hyperledger/fabric/core/system_chaincode/noop"
 	"github.com/hyperledger/fabric/core/system_chaincode/sample_syscc"
 )
 
@@ -27,5 +27,5 @@ import (
 //note the chaincode must still be deployed and launched like a user chaincode will be
 func RegisterSysCCs() {
 	api.RegisterSysCC("github.com/hyperledger/fabric/core/system_chaincode/sample_syscc", &sample_syscc.SampleSysCC{})
-	api.RegisterSysCC("github.com/hyperledger/fabric/core/system_chaincode/noop", &noop.SystemChaincode{})
+	api.RegisterSysCC("github.com/hyperledger/fabric/bddtests/syschaincode/noop", &noop.SystemChaincode{})
 }

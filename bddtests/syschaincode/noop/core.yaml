@@ -335,17 +335,15 @@ ledger:
       # Deploy chaincodes into the genesis block
       chaincodes:
 
-        #sample_syscc:
-        #  path: github.com/hyperledger/fabric/core/system_chaincode/sample_syscc
-        #  type: GOLANG
-        #  constructor:
-        #    args:
-        #      - greetings
-        #      - hello world
+        noop:
+          path: github.com/hyperledger/fabric/bddtests/syschaincode/noop
+          type: GOLANG
+          constructor:
+            args:
 
     # Setting the deploy-system-chaincode property to false will prevent the
     # deploying of system chaincode at genesis time.
-    deploy-system-chaincode: false
+    deploy-system-chaincode: true
 
   state:
 
