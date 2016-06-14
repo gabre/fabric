@@ -72,9 +72,6 @@ func TestNetworkBatch(t *testing.T) {
 			t.Fatalf("Replica %d executed %d requests, expected %d",
 				ce.id, numTrans, batchSize)
 		}
-		if numTxResults := len(block.NonHashData.TransactionResults); numTxResults != 1 /*numTrans*/ {
-			t.Fatalf("Replica %d has %d txResults, expected %d", ce.id, numTxResults, numTrans)
-		}
 	}
 }
 
