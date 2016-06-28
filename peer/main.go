@@ -491,6 +491,11 @@ func serve(args []string) error {
 	serverDevops := core.NewDevopsServer(peerServer)
 	pb.RegisterDevopsServer(grpcServer, serverDevops)
 
+	// Register Consensus GRPC API server
+	serverConsensusApi := helper.NewConsensusAPIServer()
+	pb.RegisterConsensusApiServer(grpcServer, serverConsensusApi)
+
+
 	// Register the ServerOpenchain server
 	serverOpenchain, err := rest.NewOpenchainServerWithPeerInfo(peerServer)
 	if err != nil {

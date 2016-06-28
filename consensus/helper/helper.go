@@ -174,30 +174,39 @@ func (h *Helper) BeginTxBatch(id interface{}) error {
 // one-by-one. If all the executions are successful, it returns
 // the candidate global state hash, and nil error array.
 func (h *Helper) ExecTxs(id interface{}, txs []*pb.Transaction) ([]byte, error) {
-	// TODO id is currently ignored, fix once the underlying implementation accepts id
+    var consensusOnly = true	
+	// Consensus GRPC service
+    if consensusOnly {
+        logger.Info("Sending on consensus GRPC service")
+	    for _, tx := range txs {
+		    SendNewConsensusToClients(tx.Payload)
+	    }
+        return []byte{}, nil
+    } else {
+        // TODO id is currently ignored, fix once the underlying implementation accepts id
 
-	// The secHelper is set during creat ChaincodeSupport, so we don't need this step
-	// cxt := context.WithValue(context.Background(), "security", h.coordinator.GetSecHelper())
-	// TODO return directly once underlying implementation no longer returns []error
+        // The secHelper is set during creat ChaincodeSupport, so we don't need this step
+        // cxt := context.WithValue(context.Background(), "security", h.coordinator.GetSecHelper())
+        // TODO return directly once underlying implementation no longer returns []error
 
-	res, ccevents, txerrs, err := chaincode.ExecuteTransactions(context.Background(), chaincode.DefaultChain, txs)
-	h.curBatch = append(h.curBatch, txs...) // TODO, remove after issue 579
+        res, ccevents, txerrs, err := chaincode.ExecuteTransactions(context.Background(), chaincode.DefaultChain, txs)
+        h.curBatch = append(h.curBatch, txs...) // TODO, remove after issue 579
 
-	//copy errs to results
-	txresults := make([]*pb.TransactionResult, len(txerrs))
+        //copy errs to results
+        txresults := make([]*pb.TransactionResult, len(txerrs))
 
-	//process errors for each transaction
-	for i, e := range txerrs {
-		//NOTE- it'll be nice if we can have error values. For now success == 0, error == 1
-		if txerrs[i] != nil {
-			txresults[i] = &pb.TransactionResult{Uuid: txs[i].Uuid, Error: e.Error(), ErrorCode: 1, ChaincodeEvent: ccevents[i]}
-		} else {
-			txresults[i] = &pb.TransactionResult{Uuid: txs[i].Uuid, ChaincodeEvent: ccevents[i]}
-		}
-	}
-	h.curBatchErrs = append(h.curBatchErrs, txresults...) // TODO, remove after issue 579
-
-	return res, err
+        //process errors for each transaction
+        for i, e := range txerrs {
+            //NOTE- it'll be nice if we can have error values. For now success == 0, error == 1
+            if txerrs[i] != nil {
+                txresults[i] = &pb.TransactionResult{Uuid: txs[i].Uuid, Error: e.Error(), ErrorCode: 1, ChaincodeEvent: ccevents[i]}
+            } else {
+                txresults[i] = &pb.TransactionResult{Uuid: txs[i].Uuid, ChaincodeEvent: ccevents[i]}
+            }
+        }
+        h.curBatchErrs = append(h.curBatchErrs, txresults...) // TODO, remove after issue 579
+        return res, err
+    }
 }
 
 // CommitTxBatch gets invoked when the current transaction-batch needs
@@ -206,6 +215,10 @@ func (h *Helper) ExecTxs(id interface{}, txs []*pb.Transaction) ([]byte, error) 
 // during execution of this transaction-batch) have been committed to
 // permanent storage.
 func (h *Helper) CommitTxBatch(id interface{}, metadata []byte) (*pb.Block, error) {
+	consensusOnly := true
+        if consensusOnly {
+		return nil, nil
+	}
 	ledger, err := ledger.GetLedger()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get the ledger: %v", err)

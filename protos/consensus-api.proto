@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package protos;
+
+service ConsensusApi {
+    rpc ConsentData (Payload) returns (Dummy);
+    rpc GetConsensusStream (stream Payload) returns (stream Payload);
+}
+
+message Payload {
+    bytes payload = 1;
+    bytes proof = 2;
+}
+
+message Dummy {
+    bool success = 1;
+}
