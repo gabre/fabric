@@ -32,3 +32,17 @@ func TestSys(t *testing.T) {
 		t.Fatal("expected execution")
 	}
 }
+
+// func TestMsg(t *testing.T) {
+// 	s := newTestSystem()
+// 	a := s.NewAdapter(0)
+// 	called := false
+// 	a.Send(nil, 0)
+// 	s.enqueue(1*time.Second, &testTimer{tf: func() {
+// 		called = true
+// 	}})
+// 	s.Run()
+// 	if !called {
+// 		t.Fatal("expected execution")
+// 	}
+// }

@@ -25,14 +25,22 @@ import (
 )
 
 type testSystemAdapter struct {
-	id      uint64
-	sys     *testSystem
-	batches [][][]byte
+	id       uint64
+	sys      *testSystem
+	receiver Receiver
+	batches  [][][]byte
+}
+
+func (t *testSystemAdapter) SetReceiver(recv Receiver) {
+	t.receiver = recv
 }
 
 func (t *testSystemAdapter) Send(msg *Msg, dest uint64) {
 	// TODO this is the place to emulate message latency
 	inflight := 20 * time.Millisecond
+	if dest == t.id {
+		inflight = 0
+	}
 	ev := &testMsgEvent{
 		inflight: inflight,
 		src:      t.id,
@@ -48,8 +56,13 @@ type testMsgEvent struct {
 	msg      *Msg
 }
 
-func (ev *testMsgEvent) Exec() {
-	// XXX
+func (ev *testMsgEvent) Exec(t *testSystem) {
+	r := t.adapters[ev.dst]
+	if r == nil {
+		testLog.Errorf("message to non-existing %s", ev)
+		return
+	}
+	r.receiver.Receive(ev.msg, ev.src)
 }
 
 func (ev *testMsgEvent) String() string {
@@ -67,7 +80,7 @@ func (t *testTimer) Cancel() {
 	t.cancelled = true
 }
 
-func (t *testTimer) Exec() {
+func (t *testTimer) Exec(_ *testSystem) {
 	if !t.cancelled {
 		t.tf()
 	}
@@ -91,7 +104,7 @@ func (t *testSystemAdapter) Deliver(batch [][]byte) {
 // ==============================================
 
 type testEvent interface {
-	Exec()
+	Exec(t *testSystem)
 }
 
 // ==============================================
@@ -151,6 +164,6 @@ func (t *testSystem) Run() {
 		e, t.queue = t.queue[0], t.queue[1:]
 		t.now = e.at
 		testLog.Debugf("executing %s\n", e)
-		e.ev.Exec()
+		e.ev.Exec(t)
 	}
 }

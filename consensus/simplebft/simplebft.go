@@ -17,15 +17,22 @@ limitations under the License.
 package simplebft
 
 import (
+	"reflect"
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/op/go-logging"
 )
+
+type Receiver interface {
+	Receive(msg *Msg, src uint64)
+}
 
 type System interface {
 	Send(msg *Msg, dest uint64)
 	Timer(d time.Duration, t timerFunc) Canceller
 	Deliver(batch [][]byte)
+	SetReceiver(receiver Receiver)
 }
 
 type timerFunc func()
@@ -42,12 +49,20 @@ type SBFT struct {
 	seq        Seq
 	batch      []*Request
 	batchTimer Canceller
+	cur        reqInfo
 }
 
-type msg struct {
-	msg *Msg
-	src uint64
+type reqInfo struct {
+	subject    Subject
+	payload    *DigestSet
+	preprep    *Preprepare
+	prep       map[uint64]*Subject
+	commit     map[uint64]*Subject
+	sentCommit bool
+	executed   bool
 }
+
+var log = logging.MustGetLogger("sbft")
 
 func New(id uint64, config *Config, sys System) (*SBFT, error) {
 	s := &SBFT{
@@ -58,6 +73,7 @@ func New(id uint64, config *Config, sys System) (*SBFT, error) {
 	// XXX retrieve current seq
 	s.seq.View = 0
 	s.seq.Seq = 0
+	s.sys.SetReceiver(s)
 	return s, nil
 }
 
@@ -69,13 +85,20 @@ func (s *SBFT) isPrimary() bool {
 	return s.primaryId() == s.id
 }
 
+func (s *SBFT) nextSeq() Seq {
+	seq := s.seq
+	seq.Seq += 1
+	return seq
+}
+
+func (s *SBFT) noFaultyQuorum() int {
+	return int(s.config.N - s.config.F)
+}
+
 func (s *SBFT) broadcast(m *Msg) {
 	for i := uint64(0); i < s.config.N; i++ {
-		if i != s.id {
-			s.sys.Send(m, i)
-		}
+		s.sys.Send(m, i)
 	}
-	s.Receive(m, s.id)
 }
 
 func (s *SBFT) Request(req []byte) {
@@ -85,6 +108,14 @@ func (s *SBFT) Request(req []byte) {
 func (s *SBFT) Receive(m *Msg, src uint64) {
 	if req := m.GetRequest(); req != nil {
 		s.handleRequest(req, src)
+	} else if pp := m.GetPreprepare(); pp != nil {
+		s.handlePreprepare(pp, src)
+	} else if p := m.GetPrepare(); p != nil {
+		s.handlePrepare(p, src)
+	} else if c := m.GetCommit(); c != nil {
+		s.handleCommit(c, src)
+	} else {
+		log.Infof("received invalid message from %d", src)
 	}
 }
 
@@ -98,6 +129,12 @@ func (s *SBFT) handleRequest(req *Request, src uint64) {
 		} else {
 			s.startBatchTimer()
 		}
+	}
+}
+
+func (s *SBFT) startBatchTimer() {
+	if s.batchTimer == nil {
+		s.batchTimer = s.sys.Timer(time.Duration(s.config.BatchDurationNsec), s.batchReady)
 	}
 }
 
@@ -121,7 +158,7 @@ func (s *SBFT) batchReady() {
 }
 
 func (s *SBFT) sendPreprepare(batch []*Request) {
-	s.seq.Seq += 1
+	seq := s.nextSeq()
 
 	set := &DigestSet{Digest: make([][]byte, len(batch))}
 
@@ -134,7 +171,6 @@ func (s *SBFT) sendPreprepare(batch []*Request) {
 		panic(err)
 	}
 
-	seq := s.seq
 	m := &Preprepare{
 		Seq: &seq,
 		Set: rawSet,
@@ -143,8 +179,94 @@ func (s *SBFT) sendPreprepare(batch []*Request) {
 	s.broadcast(&Msg{&Msg_Preprepare{m}})
 }
 
-func (s *SBFT) startBatchTimer() {
-	if s.batchTimer == nil {
-		s.batchTimer = s.sys.Timer(time.Duration(s.config.BatchDurationNsec), s.batchReady)
+////////////////////////////////////////////////
+
+func (s *SBFT) handlePreprepare(pp *Preprepare, src uint64) {
+	if src != s.primaryId() {
+		log.Debugf("preprepare from non-primary %d", src)
+		return
 	}
+	nextSeq := s.nextSeq()
+	if *pp.Seq != nextSeq {
+		log.Noticef("preprepare does not match expected %v, got %v", nextSeq, *pp.Seq)
+		return
+	}
+	s.seq = nextSeq
+	h := s.hash(pp.Set)
+
+	payload := &DigestSet{}
+	err := proto.Unmarshal(pp.Set, payload)
+	if err != nil {
+		log.Noticef("preprepare digest set malformed in preprepare %v from %s, %s", s.seq, src, h)
+	}
+
+	s.cur = reqInfo{
+		subject: Subject{Seq: &s.seq, Digest: h[:]},
+		payload: payload,
+		preprep: pp,
+		prep:    make(map[uint64]*Subject),
+		commit:  make(map[uint64]*Subject),
+	}
+
+	log.Infof("accepting preprepare for %v, %s", s.seq, h)
+	if !s.isPrimary() {
+		s.sendPrepare()
+	}
+
+	s.maybeSendCommit()
+}
+
+func (s *SBFT) sendPrepare() {
+	p := s.cur.subject
+	s.broadcast(&Msg{&Msg_Prepare{&p}})
+}
+
+////////////////////////////////////////////////
+
+func (s *SBFT) handlePrepare(p *Subject, src uint64) {
+	if !reflect.DeepEqual(p, &s.cur.subject) {
+		log.Debugf("prepare does not match expected subject %v, got %v", &s.cur.subject, p)
+		return
+	}
+	if _, ok := s.cur.prep[src]; ok {
+		log.Debugf("duplicate prepare for %v from %d", *p.Seq, src)
+		return
+	}
+	s.cur.prep[src] = p
+	s.maybeSendCommit()
+}
+
+func (s *SBFT) maybeSendCommit() {
+	if s.cur.sentCommit || len(s.cur.prep) < s.noFaultyQuorum()-1 {
+		return
+	}
+	s.cur.sentCommit = true
+	c := s.cur.subject
+	s.broadcast(&Msg{&Msg_Commit{&c}})
+}
+
+////////////////////////////////////////////////
+
+func (s *SBFT) handleCommit(c *Subject, src uint64) {
+	if !reflect.DeepEqual(c, &s.cur.subject) {
+		log.Debugf("commit does not match expected subject %v, got %v", &s.cur.subject, c)
+		return
+	}
+	if _, ok := s.cur.commit[src]; ok {
+		log.Debugf("duplicate commit for %v from %d", *c.Seq, src)
+		return
+	}
+	s.cur.commit[src] = c
+	s.maybeExecute()
+}
+
+func (s *SBFT) maybeExecute() {
+	if s.cur.executed || len(s.cur.prep) < s.noFaultyQuorum() {
+		return
+	}
+	s.cur.executed = true
+	log.Noticef("executing %v", s.seq)
+	s.seq = *s.cur.subject.Seq
+
+	s.sys.Deliver(s.cur.payload.Digest)
 }
