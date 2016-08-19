@@ -21,6 +21,7 @@ It has these top-level messages:
 	ViewChange
 	Signed
 	NewView
+	Checkpoint
 */
 package simplebft
 
@@ -34,10 +35,11 @@ var _ = fmt.Errorf
 var _ = math.Inf
 
 type Config struct {
-	N                 uint64 `protobuf:"varint,1,opt,name=n" json:"n,omitempty"`
-	F                 uint64 `protobuf:"varint,2,opt,name=f" json:"f,omitempty"`
-	BatchDurationNsec uint64 `protobuf:"varint,3,opt,name=batch_duration_nsec" json:"batch_duration_nsec,omitempty"`
-	BatchSizeBytes    uint64 `protobuf:"varint,4,opt,name=batch_size_bytes" json:"batch_size_bytes,omitempty"`
+	N                  uint64 `protobuf:"varint,1,opt,name=n" json:"n,omitempty"`
+	F                  uint64 `protobuf:"varint,2,opt,name=f" json:"f,omitempty"`
+	BatchDurationNsec  uint64 `protobuf:"varint,3,opt,name=batch_duration_nsec" json:"batch_duration_nsec,omitempty"`
+	BatchSizeBytes     uint64 `protobuf:"varint,4,opt,name=batch_size_bytes" json:"batch_size_bytes,omitempty"`
+	RequestTimeoutNsec uint64 `protobuf:"varint,5,opt,name=request_timeout_nsec" json:"request_timeout_nsec,omitempty"`
 }
 
 func (m *Config) Reset()         { *m = Config{} }
@@ -53,6 +55,7 @@ type Msg struct {
 	//	*Msg_Commit
 	//	*Msg_ViewChange
 	//	*Msg_NewView
+	//	*Msg_Checkpoint
 	Type isMsg_Type `protobuf_oneof:"type"`
 }
 
@@ -85,6 +88,9 @@ type Msg_ViewChange struct {
 type Msg_NewView struct {
 	NewView *NewView `protobuf:"bytes,7,opt,name=new_view,oneof"`
 }
+type Msg_Checkpoint struct {
+	Checkpoint *Checkpoint `protobuf:"bytes,8,opt,name=checkpoint,oneof"`
+}
 
 func (*Msg_Request) isMsg_Type()      {}
 func (*Msg_FetchRequest) isMsg_Type() {}
@@ -93,6 +99,7 @@ func (*Msg_Prepare) isMsg_Type()      {}
 func (*Msg_Commit) isMsg_Type()       {}
 func (*Msg_ViewChange) isMsg_Type()   {}
 func (*Msg_NewView) isMsg_Type()      {}
+func (*Msg_Checkpoint) isMsg_Type()   {}
 
 func (m *Msg) GetType() isMsg_Type {
 	if m != nil {
@@ -150,6 +157,13 @@ func (m *Msg) GetNewView() *NewView {
 	return nil
 }
 
+func (m *Msg) GetCheckpoint() *Checkpoint {
+	if x, ok := m.GetType().(*Msg_Checkpoint); ok {
+		return x.Checkpoint
+	}
+	return nil
+}
+
 // XXX_OneofFuncs is for the internal use of the proto package.
 func (*Msg) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), []interface{}) {
 	return _Msg_OneofMarshaler, _Msg_OneofUnmarshaler, []interface{}{
@@ -160,6 +174,7 @@ func (*Msg) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, fu
 		(*Msg_Commit)(nil),
 		(*Msg_ViewChange)(nil),
 		(*Msg_NewView)(nil),
+		(*Msg_Checkpoint)(nil),
 	}
 }
 
@@ -200,6 +215,11 @@ func _Msg_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
 	case *Msg_NewView:
 		b.EncodeVarint(7<<3 | proto.WireBytes)
 		if err := b.EncodeMessage(x.NewView); err != nil {
+			return err
+		}
+	case *Msg_Checkpoint:
+		b.EncodeVarint(8<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.Checkpoint); err != nil {
 			return err
 		}
 	case nil:
@@ -267,6 +287,14 @@ func _Msg_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (b
 		msg := new(NewView)
 		err := b.DecodeMessage(msg)
 		m.Type = &Msg_NewView{msg}
+		return true, err
+	case 8: // type.checkpoint
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(Checkpoint)
+		err := b.DecodeMessage(msg)
+		m.Type = &Msg_Checkpoint{msg}
 		return true, err
 	default:
 		return false, nil
@@ -346,23 +374,23 @@ func (m *Subject) GetSeq() *Seq {
 }
 
 type ViewChange struct {
-	View uint64     `protobuf:"varint,1,opt,name=view" json:"view,omitempty"`
-	Pset []*Subject `protobuf:"bytes,2,rep,name=pset" json:"pset,omitempty"`
-	Qset []*Subject `protobuf:"bytes,3,rep,name=qset" json:"qset,omitempty"`
+	View uint64   `protobuf:"varint,1,opt,name=view" json:"view,omitempty"`
+	Pset *Subject `protobuf:"bytes,2,opt,name=pset" json:"pset,omitempty"`
+	Qset *Subject `protobuf:"bytes,3,opt,name=qset" json:"qset,omitempty"`
 }
 
 func (m *ViewChange) Reset()         { *m = ViewChange{} }
 func (m *ViewChange) String() string { return proto.CompactTextString(m) }
 func (*ViewChange) ProtoMessage()    {}
 
-func (m *ViewChange) GetPset() []*Subject {
+func (m *ViewChange) GetPset() *Subject {
 	if m != nil {
 		return m.Pset
 	}
 	return nil
 }
 
-func (m *ViewChange) GetQset() []*Subject {
+func (m *ViewChange) GetQset() *Subject {
 	if m != nil {
 		return m.Qset
 	}
@@ -401,3 +429,12 @@ func (m *NewView) GetXset() []*Subject {
 	}
 	return nil
 }
+
+type Checkpoint struct {
+	Seq   uint64 `protobuf:"varint,1,opt,name=seq" json:"seq,omitempty"`
+	State []byte `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
+}
+
+func (m *Checkpoint) Reset()         { *m = Checkpoint{} }
+func (m *Checkpoint) String() string { return proto.CompactTextString(m) }
+func (*Checkpoint) ProtoMessage()    {}

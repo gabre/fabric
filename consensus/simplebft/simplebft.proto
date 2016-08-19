@@ -23,6 +23,7 @@ message config {
         uint64 f = 2;
         uint64 batch_duration_nsec = 3;
         uint64 batch_size_bytes = 4;
+        uint64 request_timeout_nsec = 5;
 };
 
 message msg {
@@ -34,6 +35,7 @@ message msg {
                 subject commit = 5;
                 signed view_change = 6;
                 new_view new_view = 7;
+                checkpoint checkpoint = 8;
         };
 };
 
@@ -69,8 +71,8 @@ message subject {
 
 message view_change {
         uint64 view = 1;
-        repeated subject pset = 2;
-        repeated subject qset = 3;
+        subject pset = 2;
+        subject qset = 3;
 };
 
 message signed {
@@ -82,4 +84,9 @@ message new_view {
         uint64 view = 1;
         repeated signed vset = 2;
         repeated subject xset = 3;
+};
+
+message checkpoint {
+        uint64 seq = 1;
+        bytes state = 2;
 };

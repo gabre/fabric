@@ -20,6 +20,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/op/go-logging"
 )
 
@@ -27,6 +28,7 @@ var testLog = logging.MustGetLogger("test")
 
 func init() {
 	logging.SetLevel(logging.NOTICE, "test")
+	logging.SetLevel(logging.NOTICE, "")
 }
 
 func TestSBFT(t *testing.T) {
@@ -36,7 +38,7 @@ func TestSBFT(t *testing.T) {
 	N := uint64(4)
 	for i := uint64(0); i < N; i++ {
 		a := sys.NewAdapter(i)
-		s, err := New(i, &Config{N: N, F: 1, BatchDurationNsec: 2000000000, BatchSizeBytes: 10}, a)
+		s, err := New(i, &Config{N: N, F: 1, BatchDurationNsec: 2000000000, BatchSizeBytes: 10, RequestTimeoutNsec: 20000000000}, a)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -53,7 +55,7 @@ func TestSBFT(t *testing.T) {
 	sys.Run()
 	for _, a := range adapters {
 		if len(a.batches) != 2 {
-			t.Error("expected execution of 2 batches")
+			t.Fatal("expected execution of 2 batches")
 		}
 		if !reflect.DeepEqual([][]byte{r1}, a.batches[0]) {
 			t.Error("wrong request executed (1)")
@@ -64,13 +66,79 @@ func TestSBFT(t *testing.T) {
 	}
 }
 
-func BenchmarkRequestPreprepare(b *testing.B) {
-	logging.SetLevel(logging.NOTICE, "")
+func TestN1(t *testing.T) {
 	sys := newTestSystem()
-	s, _ := New(0, &Config{N: 1, F: 0, BatchDurationNsec: 2000000000, BatchSizeBytes: 1}, sys.NewAdapter(0))
+	var repls []*SBFT
+	var adapters []*testSystemAdapter
+	N := uint64(1)
+	for i := uint64(0); i < N; i++ {
+		a := sys.NewAdapter(i)
+		s, err := New(i, &Config{N: N, F: 0, BatchDurationNsec: 2000000000, BatchSizeBytes: 10, RequestTimeoutNsec: 20000000000}, a)
+		if err != nil {
+			t.Fatal(err)
+		}
+		repls = append(repls, s)
+		adapters = append(adapters, a)
+	}
+	r1 := []byte{1, 2, 3}
+	repls[0].Request(r1)
+	sys.Run()
+	for _, a := range adapters {
+		if len(a.batches) != 1 {
+			t.Fatal("expected execution of 1 batch")
+		}
+		if !reflect.DeepEqual([][]byte{r1}, a.batches[0]) {
+			t.Error("wrong request executed (1)")
+		}
+	}
+}
+
+func TestByzPrimary(t *testing.T) {
+	sys := newTestSystem()
+	var repls []*SBFT
+	var adapters []*testSystemAdapter
+	N := uint64(4)
+	for i := uint64(0); i < N; i++ {
+		a := sys.NewAdapter(i)
+		s, err := New(i, &Config{N: N, F: 1, BatchDurationNsec: 2000000000, BatchSizeBytes: 1, RequestTimeoutNsec: 20000000000}, a)
+		if err != nil {
+			t.Fatal(err)
+		}
+		repls = append(repls, s)
+		adapters = append(adapters, a)
+	}
+
+	// change preprepare to 2, 3
+	sys.filterFn = func(e testElem) (testElem, bool) {
+		if msg, ok := e.ev.(*testMsgEvent); ok {
+			if pp := msg.msg.GetPreprepare(); pp != nil && msg.src == 0 && msg.dst >= 2 {
+				d := &DigestSet{}
+				proto.Unmarshal(pp.Set, d)
+				d.Digest[0][0] = byte(2)
+				pp := *pp
+				pp.Set, _ = proto.Marshal(d)
+				msg.msg = &Msg{&Msg_Preprepare{&pp}}
+			}
+		}
+		return e, true
+	}
+
+	r1 := []byte{1, 2, 3}
+	repls[0].Request(r1)
+	sys.Run()
+	for _, a := range adapters {
+		t.Log(a.batches)
+	}
+}
+
+func BenchmarkRequest(b *testing.B) {
+	logging.SetLevel(logging.WARNING, "sbft")
+
+	sys := newTestSystem()
+	s, _ := New(0, &Config{N: 1, F: 0, BatchDurationNsec: 2000000000, BatchSizeBytes: 1, RequestTimeoutNsec: 20000000000}, sys.NewAdapter(0))
 	for i := 0; i < b.N; i++ {
 		s.Request([]byte{byte(i), byte(i >> 8), byte(i >> 16)})
 		sys.Run()
 	}
-	logging.SetLevel(logging.DEBUG, "")
+	logging.SetLevel(logging.NOTICE, "sbft")
 }

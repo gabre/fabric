@@ -113,6 +113,7 @@ type testSystem struct {
 	now      time.Duration
 	queue    []testElem
 	adapters map[uint64]*testSystemAdapter
+	filterFn func(testElem) (testElem, bool)
 }
 
 type testElem struct {
@@ -153,6 +154,13 @@ func (t *testSystem) NewAdapter(id uint64) *testSystemAdapter {
 
 func (t *testSystem) enqueue(d time.Duration, ev testEvent) {
 	e := testElem{at: t.now + d, ev: ev}
+	if t.filterFn != nil {
+		var keep bool
+		e, keep = t.filterFn(e)
+		if !keep {
+			return
+		}
+	}
 	testLog.Debugf("enqueuing %s\n", e)
 	t.queue = append(t.queue, e)
 	sort.Sort(testElemQueue(t.queue))
