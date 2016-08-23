@@ -407,16 +407,16 @@ func (m *Signed) String() string { return proto.CompactTextString(m) }
 func (*Signed) ProtoMessage()    {}
 
 type NewView struct {
-	View uint64     `protobuf:"varint,1,opt,name=view" json:"view,omitempty"`
-	Vset []*Signed  `protobuf:"bytes,2,rep,name=vset" json:"vset,omitempty"`
-	Xset []*Subject `protobuf:"bytes,3,rep,name=xset" json:"xset,omitempty"`
+	View uint64             `protobuf:"varint,1,opt,name=view" json:"view,omitempty"`
+	Vset map[uint64]*Signed `protobuf:"bytes,2,rep,name=vset" json:"vset,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Xset []*Subject         `protobuf:"bytes,3,rep,name=xset" json:"xset,omitempty"`
 }
 
 func (m *NewView) Reset()         { *m = NewView{} }
 func (m *NewView) String() string { return proto.CompactTextString(m) }
 func (*NewView) ProtoMessage()    {}
 
-func (m *NewView) GetVset() []*Signed {
+func (m *NewView) GetVset() map[uint64]*Signed {
 	if m != nil {
 		return m.Vset
 	}

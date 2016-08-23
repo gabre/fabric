@@ -51,6 +51,7 @@ type SBFT struct {
 	cur        reqInfo
 	activeView bool
 	viewchange map[uint64]*viewChangeInfo
+	newview    map[uint64]*NewView
 }
 
 type reqInfo struct {
@@ -83,6 +84,7 @@ func New(id uint64, config *Config, sys System) (*SBFT, error) {
 		sys:        sys,
 		id:         id,
 		viewchange: make(map[uint64]*viewChangeInfo),
+		newview:    make(map[uint64]*NewView),
 	}
 	s.sys.SetReceiver(s)
 	// XXX retrieve current seq
@@ -95,8 +97,12 @@ func New(id uint64, config *Config, sys System) (*SBFT, error) {
 
 ////////////////////////////////////////////////
 
+func (s *SBFT) primaryIdView(v uint64) uint64 {
+	return v % s.config.N
+}
+
 func (s *SBFT) primaryId() uint64 {
-	return s.seq.View % s.config.N
+	return s.primaryIdView(s.seq.View)
 }
 
 func (s *SBFT) isPrimary() bool {
