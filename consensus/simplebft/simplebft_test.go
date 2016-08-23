@@ -32,10 +32,10 @@ func init() {
 }
 
 func TestSBFT(t *testing.T) {
-	sys := newTestSystem()
+	N := uint64(4)
+	sys := newTestSystem(N)
 	var repls []*SBFT
 	var adapters []*testSystemAdapter
-	N := uint64(4)
 	for i := uint64(0); i < N; i++ {
 		a := sys.NewAdapter(i)
 		s, err := New(i, &Config{N: N, F: 1, BatchDurationNsec: 2000000000, BatchSizeBytes: 10, RequestTimeoutNsec: 20000000000}, a)
@@ -67,10 +67,10 @@ func TestSBFT(t *testing.T) {
 }
 
 func TestN1(t *testing.T) {
-	sys := newTestSystem()
+	N := uint64(1)
+	sys := newTestSystem(N)
 	var repls []*SBFT
 	var adapters []*testSystemAdapter
-	N := uint64(1)
 	for i := uint64(0); i < N; i++ {
 		a := sys.NewAdapter(i)
 		s, err := New(i, &Config{N: N, F: 0, BatchDurationNsec: 2000000000, BatchSizeBytes: 10, RequestTimeoutNsec: 20000000000}, a)
@@ -94,10 +94,10 @@ func TestN1(t *testing.T) {
 }
 
 func TestByzPrimary(t *testing.T) {
-	sys := newTestSystem()
+	N := uint64(4)
+	sys := newTestSystem(N)
 	var repls []*SBFT
 	var adapters []*testSystemAdapter
-	N := uint64(4)
 	for i := uint64(0); i < N; i++ {
 		a := sys.NewAdapter(i)
 		s, err := New(i, &Config{N: N, F: 1, BatchDurationNsec: 2000000000, BatchSizeBytes: 1, RequestTimeoutNsec: 20000000000}, a)
@@ -136,7 +136,7 @@ func TestByzPrimary(t *testing.T) {
 func BenchmarkRequestN1(b *testing.B) {
 	logging.SetLevel(logging.WARNING, "sbft")
 
-	sys := newTestSystem()
+	sys := newTestSystem(1)
 	s, _ := New(0, &Config{N: 1, F: 0, BatchDurationNsec: 2000000000, BatchSizeBytes: 1, RequestTimeoutNsec: 20000000000}, sys.NewAdapter(0))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -149,10 +149,10 @@ func BenchmarkRequestN1(b *testing.B) {
 func BenchmarkRequestN4(b *testing.B) {
 	logging.SetLevel(logging.WARNING, "sbft")
 
+	N := uint64(4)
 	var repls []*SBFT
 	var adapters []*testSystemAdapter
-	sys := newTestSystem()
-	N := uint64(4)
+	sys := newTestSystem(N)
 	for i := uint64(0); i < N; i++ {
 		a := sys.NewAdapter(i)
 		s, err := New(i, &Config{N: N, F: 1, BatchDurationNsec: 2000000000, BatchSizeBytes: 11, RequestTimeoutNsec: 20000000000}, a)
@@ -173,10 +173,10 @@ func BenchmarkRequestN4(b *testing.B) {
 func BenchmarkRequestN80(b *testing.B) {
 	logging.SetLevel(logging.WARNING, "sbft")
 
+	N := uint64(80)
 	var repls []*SBFT
 	var adapters []*testSystemAdapter
-	sys := newTestSystem()
-	N := uint64(80)
+	sys := newTestSystem(N)
 	for i := uint64(0); i < N; i++ {
 		a := sys.NewAdapter(i)
 		s, err := New(i, &Config{N: N, F: (N - 1) / 3, BatchDurationNsec: 2000000000, BatchSizeBytes: 11, RequestTimeoutNsec: 20000000000}, a)

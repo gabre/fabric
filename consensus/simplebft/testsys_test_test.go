@@ -22,7 +22,7 @@ import (
 )
 
 func TestSys(t *testing.T) {
-	s := newTestSystem()
+	s := newTestSystem(1)
 	called := false
 	s.enqueue(1*time.Second, &testTimer{tf: func() {
 		called = true
