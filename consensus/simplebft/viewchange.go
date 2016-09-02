@@ -30,7 +30,8 @@ func (s *SBFT) sendViewChange() {
 	var q, p []*Subject
 	if s.cur.sentCommit {
 		p = append(p, &s.cur.subject)
-	} else if s.cur.preprep != nil {
+	}
+	if s.cur.preprep != nil {
 		q = append(q, &s.cur.subject)
 	}
 
@@ -42,6 +43,8 @@ func (s *SBFT) sendViewChange() {
 	}
 	svc := s.sign(vc)
 	s.broadcast(&Msg{&Msg_ViewChange{svc}})
+
+	s.processNewView()
 }
 
 func (s *SBFT) handleViewChange(svc *Signed, src uint64) {

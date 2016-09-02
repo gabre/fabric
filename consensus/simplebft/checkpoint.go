@@ -60,7 +60,8 @@ func (s *SBFT) handleCheckpoint(c *Checkpoint, src uint64) {
 	// got a stable checkpoint
 
 	if !reflect.DeepEqual(c.State, s.cur.state) {
-		log.Fatalf("stable checkpoint does not match our state")
+		log.Fatalf("stable checkpoint %x does not match our state %x",
+			c.State, s.cur.state)
 		// NOT REACHED
 	}
 }

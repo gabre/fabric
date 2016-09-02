@@ -51,7 +51,7 @@ func TestXsetNoByz(t *testing.T) {
 		t.Fatal("no xset")
 	}
 
-	if !reflect.DeepEqual(xset, []*Subject{&Subject{&Seq{3, 2}, []byte("val2")}}) {
+	if !reflect.DeepEqual(xset, &Subject{&Seq{3, 2}, []byte("val2")}) {
 		t.Error(xset)
 	}
 }
@@ -97,7 +97,7 @@ func TestXsetByz0(t *testing.T) {
 	if !ok {
 		t.Error("no xset")
 	}
-	if !reflect.DeepEqual(xset, []*Subject{&Subject{&Seq{3, 2}, []byte("val2")}}) {
+	if !reflect.DeepEqual(xset, &Subject{&Seq{3, 2}, []byte("val2")}) {
 		t.Error(xset)
 	}
 }
@@ -142,7 +142,7 @@ func TestXsetByz2(t *testing.T) {
 	if !ok {
 		t.Error("no xset")
 	}
-	if !reflect.DeepEqual(xset, []*Subject{&Subject{&Seq{3, 2}, []byte("val1")}}) {
+	if !reflect.DeepEqual(xset, &Subject{&Seq{3, 2}, []byte("val1")}) {
 		t.Error(xset)
 	}
 }

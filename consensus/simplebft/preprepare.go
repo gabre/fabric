@@ -54,7 +54,6 @@ func (s *SBFT) handlePreprepare(pp *Preprepare, src uint64) {
 		log.Infof("preprepare does not match expected %v, got %v", nextSeq, *pp.Seq)
 		return
 	}
-	s.seq = nextSeq
 	h := s.hash(pp.Set)
 
 	payload := &DigestSet{}
@@ -64,8 +63,12 @@ func (s *SBFT) handlePreprepare(pp *Preprepare, src uint64) {
 		return
 	}
 
+	s.acceptPreprepare(Subject{Seq: &nextSeq, Digest: h[:]}, payload, pp)
+}
+
+func (s *SBFT) acceptPreprepare(sub Subject, payload *DigestSet, pp *Preprepare) {
 	s.cur = reqInfo{
-		subject:    Subject{Seq: &s.seq, Digest: h[:]},
+		subject:    sub,
 		timeout:    s.sys.Timer(time.Duration(s.config.RequestTimeoutNsec)*time.Nanosecond, s.requestTimeout),
 		payload:    payload,
 		preprep:    pp,
@@ -74,7 +77,7 @@ func (s *SBFT) handlePreprepare(pp *Preprepare, src uint64) {
 		checkpoint: make(map[uint64]*Checkpoint),
 	}
 
-	log.Infof("accepting preprepare for %v, %s", s.seq, h)
+	log.Infof("accepting preprepare for %v, %x", s.seq, sub.Digest)
 	if !s.isPrimary() {
 		s.sendPrepare()
 	}
