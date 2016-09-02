@@ -42,6 +42,11 @@ func (s *SBFT) sendViewChange() {
 		Executed: s.seq.Seq,
 	}
 	svc := s.sign(vc)
+	s.viewChangeTimer.Cancel()
+	s.viewChangeTimer = s.sys.Timer(s.viewChangeTimeout, func() {
+		s.viewChangeTimeout *= 2
+		s.sendViewChange()
+	})
 	s.broadcast(&Msg{&Msg_ViewChange{svc}})
 
 	s.processNewView()

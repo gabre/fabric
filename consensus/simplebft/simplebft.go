@@ -43,16 +43,18 @@ type Canceller interface {
 type SBFT struct {
 	sys System
 
-	config          Config
-	id              uint64
-	seq             Seq
-	batch           []*Request
-	batchTimer      Canceller
-	cur             reqInfo
-	activeView      bool
-	viewchange      map[uint64]*viewChangeInfo
-	newview         map[uint64]*NewView
-	lastNewViewSent uint64
+	config            Config
+	id                uint64
+	seq               Seq
+	batch             []*Request
+	batchTimer        Canceller
+	cur               reqInfo
+	activeView        bool
+	viewchange        map[uint64]*viewChangeInfo
+	newview           map[uint64]*NewView
+	lastNewViewSent   uint64
+	viewChangeTimeout time.Duration
+	viewChangeTimer   Canceller
 }
 
 type reqInfo struct {
@@ -75,17 +77,23 @@ type viewChangeInfo struct {
 
 var log = logging.MustGetLogger("sbft")
 
+type dummyCanceller struct{}
+
+func (d dummyCanceller) Cancel() {}
+
 func New(id uint64, config *Config, sys System) (*SBFT, error) {
 	if config.F*3+1 > config.N {
 		return nil, fmt.Errorf("invalid combination of N and F")
 	}
 
 	s := &SBFT{
-		config:     *config,
-		sys:        sys,
-		id:         id,
-		viewchange: make(map[uint64]*viewChangeInfo),
-		newview:    make(map[uint64]*NewView),
+		config:            *config,
+		sys:               sys,
+		id:                id,
+		viewchange:        make(map[uint64]*viewChangeInfo),
+		newview:           make(map[uint64]*NewView),
+		viewChangeTimer:   dummyCanceller{},
+		viewChangeTimeout: time.Duration(config.RequestTimeoutNsec) * 2,
 	}
 	s.sys.SetReceiver(s)
 	// XXX retrieve current seq

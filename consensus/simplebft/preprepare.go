@@ -78,6 +78,7 @@ func (s *SBFT) acceptPreprepare(sub Subject, payload *DigestSet, pp *Preprepare)
 	}
 
 	log.Infof("accepting preprepare for %v, %x", s.seq, sub.Digest)
+	s.viewChangeTimer.Cancel()
 	if !s.isPrimary() {
 		s.sendPrepare()
 	}
