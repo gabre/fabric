@@ -16,6 +16,8 @@ limitations under the License.
 
 package simplebft
 
+import "time"
+
 func (s *SBFT) sendViewChange() {
 	s.seq.View = s.nextView()
 	s.cur.timeout.Cancel()
@@ -50,6 +52,11 @@ func (s *SBFT) sendViewChange() {
 	s.broadcast(&Msg{&Msg_ViewChange{svc}})
 
 	s.processNewView()
+}
+
+func (s *SBFT) cancelViewChangeTimer() {
+	s.viewChangeTimer.Cancel()
+	s.viewChangeTimeout = time.Duration(s.config.RequestTimeoutNsec) * 2
 }
 
 func (s *SBFT) handleViewChange(svc *Signed, src uint64) {

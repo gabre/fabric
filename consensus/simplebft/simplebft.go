@@ -87,13 +87,12 @@ func New(id uint64, config *Config, sys System) (*SBFT, error) {
 	}
 
 	s := &SBFT{
-		config:            *config,
-		sys:               sys,
-		id:                id,
-		viewchange:        make(map[uint64]*viewChangeInfo),
-		newview:           make(map[uint64]*NewView),
-		viewChangeTimer:   dummyCanceller{},
-		viewChangeTimeout: time.Duration(config.RequestTimeoutNsec) * 2,
+		config:          *config,
+		sys:             sys,
+		id:              id,
+		viewchange:      make(map[uint64]*viewChangeInfo),
+		newview:         make(map[uint64]*NewView),
+		viewChangeTimer: dummyCanceller{},
 	}
 	s.sys.SetReceiver(s)
 	// XXX retrieve current seq
@@ -101,6 +100,7 @@ func New(id uint64, config *Config, sys System) (*SBFT, error) {
 	s.seq.Seq = 0
 	// XXX set active after checking with the network
 	s.activeView = true
+	s.cancelViewChangeTimer()
 	return s, nil
 }
 
