@@ -27,17 +27,18 @@ func (s *SBFT) sendViewChange() {
 	}
 	log.Noticef("sending viewchange for view %d", s.seq.View)
 
-	var q, p *Subject
+	var q, p []*Subject
 	if s.cur.sentCommit {
-		p = &s.cur.subject
+		p = append(p, &s.cur.subject)
 	} else if s.cur.preprep != nil {
-		q = &s.cur.subject
+		q = append(q, &s.cur.subject)
 	}
 
 	vc := &ViewChange{
-		View: s.seq.View,
-		Qset: q,
-		Pset: p,
+		View:     s.seq.View,
+		Qset:     q,
+		Pset:     p,
+		Executed: s.seq.Seq,
 	}
 	svc := s.sign(vc)
 	s.broadcast(&Msg{&Msg_ViewChange{svc}})
@@ -75,11 +76,6 @@ func (s *SBFT) handleViewChange(svc *Signed, src uint64) {
 			s.sendViewChange()
 			return
 		}
-	}
-
-	if len(s.viewchange) != s.noFaultyQuorum() {
-		log.Debug("not acting on viewchange: have %d", len(s.viewchange))
-		return
 	}
 
 	if s.isPrimary() {

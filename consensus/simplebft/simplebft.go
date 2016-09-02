@@ -43,15 +43,16 @@ type Canceller interface {
 type SBFT struct {
 	sys System
 
-	config     Config
-	id         uint64
-	seq        Seq
-	batch      []*Request
-	batchTimer Canceller
-	cur        reqInfo
-	activeView bool
-	viewchange map[uint64]*viewChangeInfo
-	newview    map[uint64]*NewView
+	config          Config
+	id              uint64
+	seq             Seq
+	batch           []*Request
+	batchTimer      Canceller
+	cur             reqInfo
+	activeView      bool
+	viewchange      map[uint64]*viewChangeInfo
+	newview         map[uint64]*NewView
+	lastNewViewSent uint64
 }
 
 type reqInfo struct {

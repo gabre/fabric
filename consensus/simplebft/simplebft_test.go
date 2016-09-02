@@ -28,7 +28,7 @@ var testLog = logging.MustGetLogger("test")
 
 func init() {
 	logging.SetLevel(logging.NOTICE, "test")
-	logging.SetLevel(logging.NOTICE, "")
+	//logging.SetLevel(logging.NOTICE, "")
 }
 
 func TestSBFT(t *testing.T) {
@@ -127,8 +127,8 @@ func TestByzPrimary(t *testing.T) {
 	repls[0].Request(r1)
 	sys.Run()
 	for _, a := range adapters {
-		if len(a.batches) == 0 {
-			t.Log(a.batches)
+		if len(a.batches) != 0 {
+			t.Error(a.batches)
 		}
 	}
 }

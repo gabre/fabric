@@ -71,8 +71,9 @@ message subject {
 
 message view_change {
         uint64 view = 1;
-        subject pset = 2;
-        subject qset = 3;
+        repeated subject pset = 2;
+        repeated subject qset = 3;
+        uint64 executed = 4;
 };
 
 message signed {

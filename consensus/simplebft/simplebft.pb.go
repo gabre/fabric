@@ -374,23 +374,24 @@ func (m *Subject) GetSeq() *Seq {
 }
 
 type ViewChange struct {
-	View uint64   `protobuf:"varint,1,opt,name=view" json:"view,omitempty"`
-	Pset *Subject `protobuf:"bytes,2,opt,name=pset" json:"pset,omitempty"`
-	Qset *Subject `protobuf:"bytes,3,opt,name=qset" json:"qset,omitempty"`
+	View     uint64     `protobuf:"varint,1,opt,name=view" json:"view,omitempty"`
+	Pset     []*Subject `protobuf:"bytes,2,rep,name=pset" json:"pset,omitempty"`
+	Qset     []*Subject `protobuf:"bytes,3,rep,name=qset" json:"qset,omitempty"`
+	Executed uint64     `protobuf:"varint,4,opt,name=executed" json:"executed,omitempty"`
 }
 
 func (m *ViewChange) Reset()         { *m = ViewChange{} }
 func (m *ViewChange) String() string { return proto.CompactTextString(m) }
 func (*ViewChange) ProtoMessage()    {}
 
-func (m *ViewChange) GetPset() *Subject {
+func (m *ViewChange) GetPset() []*Subject {
 	if m != nil {
 		return m.Pset
 	}
 	return nil
 }
 
-func (m *ViewChange) GetQset() *Subject {
+func (m *ViewChange) GetQset() []*Subject {
 	if m != nil {
 		return m.Qset
 	}
