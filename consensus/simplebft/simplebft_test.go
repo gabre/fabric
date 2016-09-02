@@ -27,8 +27,9 @@ import (
 var testLog = logging.MustGetLogger("test")
 
 func init() {
+	logging.SetLevel(logging.NOTICE, "")
 	logging.SetLevel(logging.NOTICE, "test")
-	//logging.SetLevel(logging.NOTICE, "")
+	logging.SetLevel(logging.NOTICE, "sbft")
 }
 
 func TestSBFT(t *testing.T) {
