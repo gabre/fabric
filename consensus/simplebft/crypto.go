@@ -25,18 +25,13 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-type hash [sha256.Size]byte
-
-func (h hash) String() string {
-	return hash2str(h[:])
-}
-
 func hash2str(h []byte) string {
 	return base64.RawStdEncoding.EncodeToString(h)
 }
 
-func (s *SBFT) hash(data []byte) hash {
-	return sha256.Sum256(data)
+func (s *SBFT) hash(data []byte) []byte {
+	h := sha256.Sum256(data)
+	return h[:]
 }
 
 ////////////////////////////////////////////////

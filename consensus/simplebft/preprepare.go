@@ -63,7 +63,7 @@ func (s *SBFT) handlePreprepare(pp *Preprepare, src uint64) {
 		return
 	}
 
-	s.acceptPreprepare(Subject{Seq: &nextSeq, Digest: h[:]}, payload, pp)
+	s.acceptPreprepare(Subject{Seq: &nextSeq, Digest: h}, payload, pp)
 }
 
 func (s *SBFT) acceptPreprepare(sub Subject, payload *DigestSet, pp *Preprepare) {
