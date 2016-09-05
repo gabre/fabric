@@ -19,6 +19,8 @@ package simplebft
 import (
 	"fmt"
 	"reflect"
+
+	"github.com/golang/protobuf/proto"
 )
 
 func (s *SBFT) maybeSendNewView() {
@@ -42,17 +44,23 @@ func (s *SBFT) maybeSendNewView() {
 		return
 	}
 
-	if xset.Digest != nil && !reflect.DeepEqual(s.cur.subject.Digest, xset.Digest) {
-		log.Warningf("forfeiting primary - do not have request in store for %d %x", xset.Seq.Seq, xset.Digest)
-		xset = nil
+	var payload []byte
+	if xset.Digest != nil {
+		if reflect.DeepEqual(s.cur.subject.Digest, xset.Digest) {
+			payload = s.cur.preprep.Set
+		} else {
+			log.Warningf("forfeiting primary - do not have request in store for %d %x", xset.Seq.Seq, xset.Digest)
+			xset = nil
+		}
 	}
 
 	nv := &NewView{
 		View:        s.seq.View,
 		Vset:        vset,
 		Xset:        xset,
-		XsetPayload: s.cur.preprep.Set,
+		XsetPayload: payload,
 	}
+
 	log.Noticef("sending new view for %d", nv.View)
 	s.lastNewViewSent = nv.View
 	s.broadcast(&Msg{&Msg_NewView{nv}})
@@ -93,6 +101,23 @@ func (s *SBFT) handleNewView(nv *NewView, src uint64) {
 		return
 	}
 
+	h := s.hash(nv.XsetPayload)
+	if !(nv.Xset.Digest == nil && nv.XsetPayload == nil) && !reflect.DeepEqual(h, nv.Xset.Digest) {
+		log.Warningf("invalid new view from %d: payload hash does not match xset: %x, %x, %v",
+			src, h, nv.Xset.Digest, nv)
+		s.sendViewChange()
+		return
+	}
+
+	payload := &DigestSet{}
+	err := proto.Unmarshal(nv.XsetPayload, payload)
+	if err != nil {
+		log.Warningf("invalid new view from %d: digest set malformed for %x",
+			src, nv.Xset.Digest)
+		s.sendViewChange()
+		return
+	}
+
 	s.newview[s.primaryIdView(nv.View)] = nv
 
 	s.processNewView()
@@ -108,11 +133,24 @@ func (s *SBFT) processNewView() {
 		return
 	}
 
+	nextSeq := s.nextSeq()
+	if *nv.Xset.Seq != nextSeq {
+		log.Infof("we are outdated")
+		return
+	}
+
+	h := s.hash(nv.XsetPayload)
+	payload := &DigestSet{}
+	err := proto.Unmarshal(nv.XsetPayload, payload)
+	if err != nil {
+		panic(err)
+	}
+
 	pp := &Preprepare{
 		Seq: nv.Xset.Seq,
 		Set: nv.XsetPayload,
 	}
 
 	s.activeView = true
-	s.handlePreprepare(pp, s.primaryIdView(s.seq.View))
+	s.acceptPreprepare(Subject{Seq: &nextSeq, Digest: h}, payload, pp)
 }
