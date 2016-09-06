@@ -47,6 +47,7 @@ func (s *SBFT) sendViewChange() {
 	s.viewChangeTimer.Cancel()
 	s.viewChangeTimer = s.sys.Timer(s.viewChangeTimeout, func() {
 		s.viewChangeTimeout *= 2
+		log.Notice("view change timed out, sending next")
 		s.sendViewChange()
 	})
 	s.broadcast(&Msg{&Msg_ViewChange{svc}})
@@ -87,6 +88,7 @@ func (s *SBFT) handleViewChange(svc *Signed, src uint64) {
 		}
 		// catch up to the minimum view
 		if s.seq.View < min {
+			log.Notice("we are behind on view change, resending for newer view")
 			s.seq.View = min - 1
 			s.sendViewChange()
 			return

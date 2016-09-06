@@ -77,7 +77,7 @@ func (s *SBFT) acceptPreprepare(sub Subject, payload *DigestSet, pp *Preprepare)
 		checkpoint: make(map[uint64]*Checkpoint),
 	}
 
-	log.Infof("accepting preprepare for %v, %x", s.seq, sub.Digest)
+	log.Infof("accepting preprepare for %v, %x", sub.Seq, sub.Digest)
 	s.cancelViewChangeTimer()
 	if !s.isPrimary() {
 		s.sendPrepare()
