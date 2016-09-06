@@ -176,3 +176,75 @@ func TestViewChange(t *testing.T) {
 		}
 	}
 }
+
+func TestViewChangeXset(t *testing.T) {
+	N := uint64(4)
+	sys := newTestSystem(N)
+	var repls []*SBFT
+	var adapters []*testSystemAdapter
+	for i := uint64(0); i < N; i++ {
+		a := sys.NewAdapter(i)
+		s, err := New(i, &Config{N: N, F: 1, BatchDurationNsec: 2000000000, BatchSizeBytes: 1, RequestTimeoutNsec: 20000000000}, a)
+		if err != nil {
+			t.Fatal(err)
+		}
+		repls = append(repls, s)
+		adapters = append(adapters, a)
+	}
+
+	phase := 1
+
+	// network outage after prepares are received
+	sys.filterFn = func(e testElem) (testElem, bool) {
+		if msg, ok := e.ev.(*testMsgEvent); ok {
+			if msg.src == msg.dst {
+				return e, true
+			}
+
+			switch phase {
+			case 1:
+				if p := msg.msg.GetPrepare(); p != nil && p.Seq.View == 0 {
+					return e, false
+				}
+			case 2:
+				if nv := msg.msg.GetNewView(); nv != nil {
+					phase = 3
+					return e, true
+				}
+				if msg.src == 3 || msg.dst == 3 {
+					return e, false
+				}
+				if c := msg.msg.GetCommit(); c != nil && c.Seq.View == 1 {
+					return e, false
+				}
+			case 3:
+				if msg.src == 3 || msg.dst == 3 {
+					return e, false
+				}
+			}
+		}
+		return e, true
+	}
+
+	r1 := []byte{1, 2, 3}
+	repls[0].Request(r1)
+	sys.Run()
+	phase = 2
+
+	r2 := []byte{5, 6, 7}
+	repls[1].Request(r2)
+	sys.Run()
+
+	for i, a := range adapters {
+		// 3 is disconnected
+		if i == 3 {
+			continue
+		}
+		if len(a.batches) != 1 {
+			t.Fatal("expected execution of 1 batch")
+		}
+		if !reflect.DeepEqual([][]byte{r2}, a.batches[0]) {
+			t.Error("wrong request executed")
+		}
+	}
+}
