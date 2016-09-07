@@ -55,6 +55,8 @@ type SBFT struct {
 	lastNewViewSent   uint64
 	viewChangeTimeout time.Duration
 	viewChangeTimer   Canceller
+
+	backLog map[uint64][]*Msg
 }
 
 type reqInfo struct {
@@ -93,11 +95,13 @@ func New(id uint64, config *Config, sys System) (*SBFT, error) {
 		viewchange:      make(map[uint64]*viewChangeInfo),
 		newview:         make(map[uint64]*NewView),
 		viewChangeTimer: dummyCanceller{},
+		backLog:         make(map[uint64][]*Msg),
 	}
 	s.sys.SetReceiver(s)
 	// XXX retrieve current seq
 	s.seq.View = 0
 	s.seq.Seq = 0
+	s.cur.subject.Seq = &s.seq
 	// XXX set active after checking with the network
 	s.activeView = true
 	s.cur.executed = true
@@ -148,6 +152,13 @@ func (s *SBFT) broadcast(m *Msg) {
 
 func (s *SBFT) Receive(m *Msg, src uint64) {
 	log.Debugf("received message from %d: %s", src, m)
+
+	if s.testBacklog(m, src) {
+		log.Debugf("message for future seq, storing for later")
+		s.recordBacklogMsg(m, src)
+		return
+	}
+
 	if req := m.GetRequest(); req != nil {
 		s.handleRequest(req, src)
 		return
@@ -168,6 +179,10 @@ func (s *SBFT) Receive(m *Msg, src uint64) {
 		return
 	}
 
+	s.handleQueueableMessage(m, src)
+}
+
+func (s *SBFT) handleQueueableMessage(m *Msg, src uint64) {
 	if pp := m.GetPreprepare(); pp != nil {
 		s.handlePreprepare(pp, src)
 		return
