@@ -45,6 +45,7 @@ func (s *SBFT) testBacklog2(m *Msg, src uint64) bool {
 }
 
 func (s *SBFT) recordBacklogMsg(m *Msg, src uint64) {
+	// TODO prevent DoS by limiting the number of messages per replica
 	s.backLog[src] = append(s.backLog[src], m)
 }
 
