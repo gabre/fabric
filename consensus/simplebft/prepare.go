@@ -24,6 +24,11 @@ func (s *SBFT) sendPrepare() {
 }
 
 func (s *SBFT) handlePrepare(p *Subject, src uint64) {
+	if p.Seq.Seq < s.cur.subject.Seq.Seq {
+		// old message
+		return
+	}
+
 	if !reflect.DeepEqual(p, &s.cur.subject) {
 		log.Infof("prepare does not match expected subject %v, got %v", &s.cur.subject, p)
 		return

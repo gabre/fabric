@@ -26,7 +26,7 @@ func (s *SBFT) handleRequest(req *Request, src uint64) {
 	if s.isPrimary() {
 		s.batch = append(s.batch, req)
 		if s.batchSize() >= s.config.BatchSizeBytes {
-			s.batchReady()
+			s.maybeSendNextBatch()
 		} else {
 			s.startBatchTimer()
 		}
@@ -37,7 +37,7 @@ func (s *SBFT) handleRequest(req *Request, src uint64) {
 
 func (s *SBFT) startBatchTimer() {
 	if s.batchTimer == nil {
-		s.batchTimer = s.sys.Timer(time.Duration(s.config.BatchDurationNsec), s.batchReady)
+		s.batchTimer = s.sys.Timer(time.Duration(s.config.BatchDurationNsec), s.maybeSendNextBatch)
 	}
 }
 
@@ -49,10 +49,22 @@ func (s *SBFT) batchSize() uint64 {
 	return size
 }
 
-func (s *SBFT) batchReady() {
+func (s *SBFT) maybeSendNextBatch() {
 	if s.batchTimer != nil {
 		s.batchTimer.Cancel()
 		s.batchTimer = nil
+	}
+
+	if !s.isPrimary() {
+		return
+	}
+
+	if !s.cur.executed {
+		return
+	}
+
+	if len(s.batch) == 0 {
+		return
 	}
 
 	batch := s.batch

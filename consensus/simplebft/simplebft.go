@@ -100,6 +100,8 @@ func New(id uint64, config *Config, sys System) (*SBFT, error) {
 	s.seq.Seq = 0
 	// XXX set active after checking with the network
 	s.activeView = true
+	s.cur.executed = true
+
 	s.cancelViewChangeTimer()
 	return s, nil
 }

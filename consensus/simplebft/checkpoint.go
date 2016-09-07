@@ -33,7 +33,7 @@ func (s *SBFT) sendCheckpoint() {
 
 func (s *SBFT) handleCheckpoint(c *Checkpoint, src uint64) {
 	if c.Seq != s.cur.subject.Seq.Seq {
-		log.Infof("commit does not match expected subject %v, got %v", &s.cur.subject, c)
+		log.Infof("checkpoint does not match expected subject %v, got %v", &s.cur.subject, c)
 		return
 	}
 	if _, ok := s.cur.checkpoint[src]; ok {
@@ -64,4 +64,6 @@ func (s *SBFT) handleCheckpoint(c *Checkpoint, src uint64) {
 			c.State, s.cur.state)
 		// NOT REACHED
 	}
+
+	s.maybeSendNextBatch()
 }

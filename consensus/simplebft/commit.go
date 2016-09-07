@@ -28,6 +28,11 @@ func (s *SBFT) maybeSendCommit() {
 }
 
 func (s *SBFT) handleCommit(c *Subject, src uint64) {
+	if c.Seq.Seq < s.cur.subject.Seq.Seq {
+		// old message
+		return
+	}
+
 	if !reflect.DeepEqual(c, &s.cur.subject) {
 		log.Infof("commit does not match expected subject %v, got %v", &s.cur.subject, c)
 		return

@@ -19,6 +19,7 @@ package simplebft
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/op/go-logging"
@@ -62,6 +63,46 @@ func TestSBFT(t *testing.T) {
 			t.Error("wrong request executed (1)")
 		}
 		if !reflect.DeepEqual([][]byte{r2, r3}, a.batches[1]) {
+			t.Error("wrong request executed (2)")
+		}
+	}
+}
+
+func TestSBFTDelayed(t *testing.T) {
+	N := uint64(4)
+	sys := newTestSystem(N)
+	var repls []*SBFT
+	var adapters []*testSystemAdapter
+	for i := uint64(0); i < N; i++ {
+		a := sys.NewAdapter(i)
+		s, err := New(i, &Config{N: N, F: 1, BatchDurationNsec: 2000000000, BatchSizeBytes: 1, RequestTimeoutNsec: 20000000000}, a)
+		if err != nil {
+			t.Fatal(err)
+		}
+		repls = append(repls, s)
+		adapters = append(adapters, a)
+	}
+
+	// make replica 3 lag out against 1 and 2
+	for i := uint64(1); i < 3; i++ {
+		adapters[i].arrivals[3] = 200 * time.Millisecond
+		adapters[3].arrivals[i] = 200 * time.Millisecond
+	}
+
+	r1 := []byte{1, 2, 3}
+	r2 := []byte{3, 1, 2}
+	repls[0].Request(r1)
+	repls[1].Request(r2)
+	sys.Run()
+	for i, a := range adapters {
+		if len(a.batches) != 2 {
+			t.Errorf("expected execution of 2 batches on %d", i)
+			continue
+		}
+		if !reflect.DeepEqual([][]byte{r1}, a.batches[0]) {
+			t.Error("wrong request executed (1)")
+		}
+		if !reflect.DeepEqual([][]byte{r2}, a.batches[1]) {
 			t.Error("wrong request executed (2)")
 		}
 	}
