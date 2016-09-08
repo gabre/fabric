@@ -45,6 +45,9 @@ func (s *SBFT) testBacklog2(m *Msg, src uint64) bool {
 }
 
 func (s *SBFT) recordBacklogMsg(m *Msg, src uint64) {
+	if src == s.id {
+		panic("should never have to backlog my own message")
+	}
 	// TODO prevent DoS by limiting the number of messages per replica
 	s.backLog[src] = append(s.backLog[src], m)
 }
@@ -54,10 +57,12 @@ func (s *SBFT) processBacklog() {
 
 	for processed {
 		processed = false
+		notReady := uint64(0)
 		for src, _ := range s.backLog {
 			for len(s.backLog[src]) > 0 {
 				m, rest := s.backLog[src][0], s.backLog[src][1:]
 				if s.testBacklog2(m, src) {
+					notReady++
 					break
 				}
 				s.backLog[src] = rest
@@ -67,6 +72,17 @@ func (s *SBFT) processBacklog() {
 				s.handleQueueableMessage(m, src)
 				processed = true
 			}
+		}
+
+		// all minus us
+		if notReady >= s.config.N-1 {
+			// This is a problem - we consider all other replicas
+			// too far ahead for us.  We need to do a state transfer
+			// to get out of this rut.
+			for src := range s.backLog {
+				delete(s.backLog, src)
+			}
+			// TODO trigger state transfer
 		}
 	}
 }
