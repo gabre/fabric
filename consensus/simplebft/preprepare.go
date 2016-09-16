@@ -41,6 +41,7 @@ func (s *SBFT) sendPreprepare(batch []*Request) {
 		Set: rawSet,
 	}
 
+	s.sys.Persist("preprepare", m)
 	s.broadcast(&Msg{&Msg_Preprepare{m}})
 }
 
@@ -78,6 +79,7 @@ func (s *SBFT) acceptPreprepare(sub Subject, payload *DigestSet, pp *Preprepare)
 	}
 
 	log.Infof("accepting preprepare for %v, %x", sub.Seq, sub.Digest)
+	s.sys.Persist("preprepare", pp)
 	s.cancelViewChangeTimer()
 	if !s.isPrimary() {
 		s.sendPrepare()

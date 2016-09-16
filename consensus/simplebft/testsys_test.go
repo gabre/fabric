@@ -31,8 +31,9 @@ type testSystemAdapter struct {
 	sys      *testSystem
 	receiver Receiver
 
-	batches  [][][]byte
-	arrivals map[uint64]time.Duration
+	batches     [][][]byte
+	arrivals    map[uint64]time.Duration
+	persistence map[string][]byte
 }
 
 func (t *testSystemAdapter) SetReceiver(recv Receiver) {
@@ -117,6 +118,27 @@ func (t *testSystemAdapter) Deliver(batch [][]byte) {
 	t.batches = append(t.batches, batch)
 }
 
+func (t *testSystemAdapter) Persist(key string, data proto.Message) {
+	if data == nil {
+		delete(t.persistence, key)
+	} else {
+		bytes, err := proto.Marshal(data)
+		if err != nil {
+			panic(err)
+		}
+		t.persistence[key] = bytes
+	}
+}
+
+func (t *testSystemAdapter) Restore(key string, out proto.Message) bool {
+	val, ok := t.persistence[key]
+	if !ok {
+		return false
+	}
+	err := proto.Unmarshal(val, out)
+	return (err == nil)
+}
+
 // ==============================================
 
 type testEvent interface {
@@ -152,9 +174,10 @@ func newTestSystem(n uint64) *testSystem {
 
 func (t *testSystem) NewAdapter(id uint64) *testSystemAdapter {
 	a := &testSystemAdapter{
-		id:       id,
-		sys:      t,
-		arrivals: make(map[uint64]time.Duration),
+		id:          id,
+		sys:         t,
+		arrivals:    make(map[uint64]time.Duration),
+		persistence: make(map[string][]byte),
 	}
 	t.adapters[id] = a
 	return a

@@ -22,6 +22,7 @@ It has these top-level messages:
 	Signed
 	NewView
 	Checkpoint
+	CheckpointSet
 */
 package simplebft
 
@@ -433,10 +434,26 @@ func (m *NewView) GetXset() *Subject {
 }
 
 type Checkpoint struct {
-	Seq   uint64 `protobuf:"varint,1,opt,name=seq" json:"seq,omitempty"`
-	State []byte `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
+	Replica uint64 `protobuf:"varint,1,opt,name=replica" json:"replica,omitempty"`
+	Seq     uint64 `protobuf:"varint,2,opt,name=seq" json:"seq,omitempty"`
+	State   []byte `protobuf:"bytes,3,opt,name=state,proto3" json:"state,omitempty"`
 }
 
 func (m *Checkpoint) Reset()         { *m = Checkpoint{} }
 func (m *Checkpoint) String() string { return proto.CompactTextString(m) }
 func (*Checkpoint) ProtoMessage()    {}
+
+type CheckpointSet struct {
+	CheckpointSet []*Checkpoint `protobuf:"bytes,1,rep,name=checkpoint_set" json:"checkpoint_set,omitempty"`
+}
+
+func (m *CheckpointSet) Reset()         { *m = CheckpointSet{} }
+func (m *CheckpointSet) String() string { return proto.CompactTextString(m) }
+func (*CheckpointSet) ProtoMessage()    {}
+
+func (m *CheckpointSet) GetCheckpointSet() []*Checkpoint {
+	if m != nil {
+		return m.CheckpointSet
+	}
+	return nil
+}

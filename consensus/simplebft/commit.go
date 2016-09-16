@@ -24,6 +24,7 @@ func (s *SBFT) maybeSendCommit() {
 	}
 	s.cur.sentCommit = true
 	c := s.cur.subject
+	s.sys.Persist("commit", &c)
 	s.broadcast(&Msg{&Msg_Commit{&c}})
 }
 

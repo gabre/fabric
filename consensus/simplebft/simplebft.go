@@ -18,8 +18,10 @@ package simplebft
 
 import (
 	"fmt"
+	"reflect"
 	"time"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/op/go-logging"
 )
 
@@ -32,6 +34,8 @@ type System interface {
 	Timer(d time.Duration, t timerFunc) Canceller
 	Deliver(batch [][]byte)
 	SetReceiver(receiver Receiver)
+	Persist(key string, data proto.Message)
+	Restore(key string, out proto.Message) bool
 }
 
 type timerFunc func()
@@ -98,13 +102,33 @@ func New(id uint64, config *Config, sys System) (*SBFT, error) {
 		backLog:         make(map[uint64][]*Msg),
 	}
 	s.sys.SetReceiver(s)
-	// XXX retrieve current seq
+
 	s.seq.View = 0
 	s.seq.Seq = 0
 	s.cur.subject.Seq = &s.seq
+	s.cur.executed = true
+	s.cur.timeout = dummyCanceller{}
+
+	pp := &Preprepare{}
+	if s.sys.Restore("preprepare", pp) {
+		s.seq = *pp.Seq
+		s.seq.Seq -= 1
+		s.handlePreprepare(pp, s.primaryIdView(pp.Seq.View))
+	}
+	c := &Subject{}
+	if s.sys.Restore("commit", c) && reflect.DeepEqual(c, &s.cur.subject) {
+		s.cur.sentCommit = true
+	}
+	// TODO use block chain (execute) instead
+	cpset := &CheckpointSet{}
+	if s.sys.Restore("checkpoint", cpset) && cpset.CheckpointSet[0].Seq == s.cur.subject.Seq.Seq {
+		s.cur.executed = true
+		s.cur.timeout.Cancel()
+		s.seq = *s.cur.subject.Seq
+	}
+
 	// XXX set active after checking with the network
 	s.activeView = true
-	s.cur.executed = true
 
 	s.cancelViewChangeTimer()
 	return s, nil

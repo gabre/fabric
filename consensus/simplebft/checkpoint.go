@@ -36,6 +36,7 @@ func (s *SBFT) handleCheckpoint(c *Checkpoint, src uint64) {
 		// old message
 		return
 	}
+	// TODO should we always accept checkpoints?
 	if c.Seq != s.cur.subject.Seq.Seq {
 		log.Infof("checkpoint does not match expected subject %v, got %v", &s.cur.subject, c)
 		return
@@ -60,6 +61,13 @@ func (s *SBFT) handleCheckpoint(c *Checkpoint, src uint64) {
 	if !ok || len(sums[max]) != s.noFaultyQuorum() {
 		return
 	}
+
+	var cpset []*Checkpoint
+	for _, r := range replicas {
+		cpset = append(cpset, s.cur.checkpoint[r])
+	}
+	s.sys.Persist("checkpoint", &CheckpointSet{cpset})
+
 	c = s.cur.checkpoint[replicas[0]]
 	// got a stable checkpoint
 
