@@ -73,7 +73,7 @@ type reqInfo struct {
 	sentCommit bool
 	executed   bool
 	state      []byte
-	checkpoint map[uint64]*Checkpoint
+	checkpoint map[uint64]*Signed
 }
 
 type viewChangeInfo struct {
@@ -121,10 +121,21 @@ func New(id uint64, config *Config, sys System) (*SBFT, error) {
 	}
 	// TODO use block chain (execute) instead
 	cpset := &CheckpointSet{}
-	if s.sys.Restore("checkpoint", cpset) && cpset.CheckpointSet[0].Seq == s.cur.subject.Seq.Seq {
-		s.cur.executed = true
-		s.cur.timeout.Cancel()
-		s.seq = *s.cur.subject.Seq
+	if s.sys.Restore("checkpoint", cpset) {
+		// get one entry
+		var r uint64
+		var cs *Signed
+		for r, cs = range cpset.CheckpointSet {
+			break
+		}
+
+		c := &Checkpoint{}
+		s.checkSig(cs, r, c)
+		if c.Seq == s.cur.subject.Seq.Seq {
+			s.cur.executed = true
+			s.cur.timeout.Cancel()
+			s.seq = *s.cur.subject.Seq
+		}
 	}
 
 	// XXX set active after checking with the network

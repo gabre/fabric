@@ -75,7 +75,7 @@ func (s *SBFT) acceptPreprepare(sub Subject, payload *DigestSet, pp *Preprepare)
 		preprep:    pp,
 		prep:       make(map[uint64]*Subject),
 		commit:     make(map[uint64]*Subject),
-		checkpoint: make(map[uint64]*Checkpoint),
+		checkpoint: make(map[uint64]*Signed),
 	}
 
 	log.Infof("accepting preprepare for %v, %x", sub.Seq, sub.Digest)

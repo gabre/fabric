@@ -28,10 +28,17 @@ func (s *SBFT) sendCheckpoint() {
 		Seq:   s.seq.Seq,
 		State: state,
 	}
-	s.broadcast(&Msg{&Msg_Checkpoint{c}})
+	cs := s.sign(c)
+	s.broadcast(&Msg{&Msg_Checkpoint{cs}})
 }
 
-func (s *SBFT) handleCheckpoint(c *Checkpoint, src uint64) {
+func (s *SBFT) handleCheckpoint(cs *Signed, src uint64) {
+	c := &Checkpoint{}
+	err := s.checkSig(cs, src, c)
+	if err != nil {
+		return
+	}
+
 	if c.Seq < s.cur.subject.Seq.Seq {
 		// old message
 		return
@@ -44,11 +51,13 @@ func (s *SBFT) handleCheckpoint(c *Checkpoint, src uint64) {
 	if _, ok := s.cur.checkpoint[src]; ok {
 		log.Infof("duplicate checkpoint for %d from %d", c.Seq, src)
 	}
-	s.cur.checkpoint[src] = c
+	s.cur.checkpoint[src] = cs
 
 	max := "_"
 	sums := make(map[string][]uint64)
-	for csrc, c := range s.cur.checkpoint {
+	for csrc, cs := range s.cur.checkpoint {
+		c := &Checkpoint{}
+		s.checkSig(cs, csrc, c)
 		sum := fmt.Sprintf("%x", c.State)
 		sums[sum] = append(sums[sum], csrc)
 
@@ -62,14 +71,16 @@ func (s *SBFT) handleCheckpoint(c *Checkpoint, src uint64) {
 		return
 	}
 
-	var cpset []*Checkpoint
-	for _, r := range replicas {
-		cpset = append(cpset, s.cur.checkpoint[r])
-	}
-	s.sys.Persist("checkpoint", &CheckpointSet{cpset})
-
-	c = s.cur.checkpoint[replicas[0]]
 	// got a stable checkpoint
+
+	cpset := &CheckpointSet{make(map[uint64]*Signed)}
+	for _, r := range replicas {
+		cpset.CheckpointSet[r] = s.cur.checkpoint[r]
+	}
+	s.sys.Persist("checkpoint", cpset)
+
+	cs = s.cur.checkpoint[replicas[0]]
+	s.checkSig(cs, replicas[0], c)
 
 	if !reflect.DeepEqual(c.State, s.cur.state) {
 		log.Fatalf("stable checkpoint %x does not match our state %x",

@@ -90,7 +90,7 @@ type Msg_NewView struct {
 	NewView *NewView `protobuf:"bytes,7,opt,name=new_view,oneof"`
 }
 type Msg_Checkpoint struct {
-	Checkpoint *Checkpoint `protobuf:"bytes,8,opt,name=checkpoint,oneof"`
+	Checkpoint *Signed `protobuf:"bytes,8,opt,name=checkpoint,oneof"`
 }
 
 func (*Msg_Request) isMsg_Type()      {}
@@ -158,7 +158,7 @@ func (m *Msg) GetNewView() *NewView {
 	return nil
 }
 
-func (m *Msg) GetCheckpoint() *Checkpoint {
+func (m *Msg) GetCheckpoint() *Signed {
 	if x, ok := m.GetType().(*Msg_Checkpoint); ok {
 		return x.Checkpoint
 	}
@@ -293,7 +293,7 @@ func _Msg_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (b
 		if wire != proto.WireBytes {
 			return true, proto.ErrInternalBadWireType
 		}
-		msg := new(Checkpoint)
+		msg := new(Signed)
 		err := b.DecodeMessage(msg)
 		m.Type = &Msg_Checkpoint{msg}
 		return true, err
@@ -434,9 +434,8 @@ func (m *NewView) GetXset() *Subject {
 }
 
 type Checkpoint struct {
-	Replica uint64 `protobuf:"varint,1,opt,name=replica" json:"replica,omitempty"`
-	Seq     uint64 `protobuf:"varint,2,opt,name=seq" json:"seq,omitempty"`
-	State   []byte `protobuf:"bytes,3,opt,name=state,proto3" json:"state,omitempty"`
+	Seq   uint64 `protobuf:"varint,1,opt,name=seq" json:"seq,omitempty"`
+	State []byte `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
 }
 
 func (m *Checkpoint) Reset()         { *m = Checkpoint{} }
@@ -444,14 +443,14 @@ func (m *Checkpoint) String() string { return proto.CompactTextString(m) }
 func (*Checkpoint) ProtoMessage()    {}
 
 type CheckpointSet struct {
-	CheckpointSet []*Checkpoint `protobuf:"bytes,1,rep,name=checkpoint_set" json:"checkpoint_set,omitempty"`
+	CheckpointSet map[uint64]*Signed `protobuf:"bytes,1,rep,name=checkpoint_set" json:"checkpoint_set,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 }
 
 func (m *CheckpointSet) Reset()         { *m = CheckpointSet{} }
 func (m *CheckpointSet) String() string { return proto.CompactTextString(m) }
 func (*CheckpointSet) ProtoMessage()    {}
 
-func (m *CheckpointSet) GetCheckpointSet() []*Checkpoint {
+func (m *CheckpointSet) GetCheckpointSet() map[uint64]*Signed {
 	if m != nil {
 		return m.CheckpointSet
 	}

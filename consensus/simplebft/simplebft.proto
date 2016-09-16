@@ -35,7 +35,7 @@ message msg {
                 subject commit = 5;
                 signed view_change = 6;
                 new_view new_view = 7;
-                checkpoint checkpoint = 8;
+                signed checkpoint = 8;
         };
 };
 
@@ -94,5 +94,5 @@ message checkpoint {
 };
 
 message checkpoint_set {
-        repeated checkpoint checkpoint_set = 1;
+        map<uint64, signed> checkpoint_set = 1;
 };
