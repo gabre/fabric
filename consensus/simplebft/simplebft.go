@@ -36,6 +36,8 @@ type System interface {
 	SetReceiver(receiver Receiver)
 	Persist(key string, data proto.Message)
 	Restore(key string, out proto.Message) bool
+	Sign(data []byte) []byte
+	CheckSig(data []byte, src uint64, sig []byte) error
 }
 
 type timerFunc func()

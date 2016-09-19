@@ -17,7 +17,13 @@ limitations under the License.
 package simplebft
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	crand "crypto/rand"
+	"crypto/sha256"
+	"encoding/asn1"
 	"fmt"
+	"math/big"
 	"math/rand"
 	"reflect"
 	"runtime"
@@ -34,6 +40,8 @@ type testSystemAdapter struct {
 	batches     [][][]byte
 	arrivals    map[uint64]time.Duration
 	persistence map[string][]byte
+
+	key *ecdsa.PrivateKey
 }
 
 func (t *testSystemAdapter) SetReceiver(recv Receiver) {
@@ -139,6 +147,36 @@ func (t *testSystemAdapter) Restore(key string, out proto.Message) bool {
 	return (err == nil)
 }
 
+func (t *testSystemAdapter) Sign(data []byte) []byte {
+	hash := sha256.Sum256(data)
+	r, s, err := ecdsa.Sign(crand.Reader, t.key, hash[:])
+	if err != nil {
+		panic(err)
+	}
+	sig, err := asn1.Marshal(struct{ R, S *big.Int }{r, s})
+	if err != nil {
+		panic(err)
+	}
+	return sig
+}
+
+func (t *testSystemAdapter) CheckSig(data []byte, src uint64, sig []byte) error {
+	rs := struct{ R, S *big.Int }{}
+	rest, err := asn1.Unmarshal(sig, &rs)
+	if err != nil {
+		return err
+	}
+	if len(rest) != 0 {
+		return fmt.Errorf("invalid signature")
+	}
+	hash := sha256.Sum256(data)
+	ok := ecdsa.Verify(&t.sys.adapters[src].key.PublicKey, hash[:], rs.R, rs.S)
+	if !ok {
+		return fmt.Errorf("invalid signature")
+	}
+	return nil
+}
+
 // ==============================================
 
 type testEvent interface {
@@ -173,11 +211,16 @@ func newTestSystem(n uint64) *testSystem {
 }
 
 func (t *testSystem) NewAdapter(id uint64) *testSystemAdapter {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), crand.Reader)
+	if err != nil {
+		panic(err)
+	}
 	a := &testSystemAdapter{
 		id:          id,
 		sys:         t,
 		arrivals:    make(map[uint64]time.Duration),
 		persistence: make(map[string][]byte),
+		key:         key,
 	}
 	t.adapters[id] = a
 	return a

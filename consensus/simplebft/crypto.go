@@ -19,8 +19,6 @@ package simplebft
 import (
 	"crypto/sha256"
 	"encoding/base64"
-	"fmt"
-	"reflect"
 
 	"github.com/golang/protobuf/proto"
 )
@@ -41,17 +39,16 @@ func (s *SBFT) sign(msg proto.Message) *Signed {
 	if err != nil {
 		panic(err)
 	}
-	// XXX sign
-	sig := fmt.Sprintf("XXX dummy %d", s.id)
+	sig := s.sys.Sign(bytes)
 	return &Signed{Data: bytes, Signature: []byte(sig)}
 }
 
 func (s *SBFT) checkSig(sig *Signed, signer uint64, msg proto.Message) error {
-	expect := fmt.Sprintf("XXX dummy %d", signer)
-	if !reflect.DeepEqual(sig.Signature, []byte(expect)) {
-		return fmt.Errorf("invalid signature from %d", signer)
+	err := s.sys.CheckSig(sig.Data, signer, sig.Signature)
+	if err != nil {
+		return err
 	}
-	err := proto.Unmarshal(sig.Data, msg)
+	err = proto.Unmarshal(sig.Data, msg)
 	if err != nil {
 		return err
 	}
