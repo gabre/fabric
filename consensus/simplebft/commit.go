@@ -22,6 +22,10 @@ func (s *SBFT) maybeSendCommit() {
 	if s.cur.sentCommit || len(s.cur.prep) < s.noFaultyQuorum()-1 {
 		return
 	}
+	s.sendCommit()
+}
+
+func (s *SBFT) sendCommit() {
 	s.cur.sentCommit = true
 	c := s.cur.subject
 	s.sys.Persist("commit", &c)

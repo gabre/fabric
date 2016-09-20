@@ -122,14 +122,14 @@ func New(id uint64, config *Config, sys System) (*SBFT, error) {
 	c := &Subject{}
 	if s.sys.Restore("commit", c) && reflect.DeepEqual(c, &s.cur.subject) {
 		s.cur.sentCommit = true
-		// XXX send commit
+		s.sendCommit()
 	}
 	ex := &Subject{}
 	if s.sys.Restore("execute", ex) && reflect.DeepEqual(c, &s.cur.subject) {
 		s.cur.executed = true
-		// XXX send checkpoint
+		s.sendCheckpoint()
 	}
-	// TODO use block chain (execute) instead
+	// TODO use block chain (deliver) instead
 	cpset := &CheckpointSet{}
 	if s.sys.Restore("checkpoint", cpset) {
 		// get one entry
@@ -142,9 +142,9 @@ func New(id uint64, config *Config, sys System) (*SBFT, error) {
 		c := &Checkpoint{}
 		s.checkSig(cs, r, c)
 		if c.Seq == s.cur.subject.Seq.Seq {
-			s.cur.executed = true
 			s.cur.timeout.Cancel()
 			s.seq = *s.cur.subject.Seq
+			s.cur.checkpointDone = true
 		}
 	}
 
