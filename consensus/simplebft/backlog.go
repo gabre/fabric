@@ -40,10 +40,7 @@ func (s *SBFT) testBacklog2(m *Msg, src uint64) bool {
 		return record(c.Seq.Seq)
 	} else if cs := m.GetCheckpoint(); cs != nil {
 		c := &Checkpoint{}
-		err := s.checkSig(cs, src, c)
-		if err == nil {
-			return record(c.Seq)
-		}
+		return record(c.Seq)
 	}
 	return false
 }

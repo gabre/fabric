@@ -32,7 +32,7 @@ type Receiver interface {
 type System interface {
 	Send(msg *Msg, dest uint64)
 	Timer(d time.Duration, t timerFunc) Canceller
-	Deliver(seq uint64, batch [][]byte, cpset *CheckpointSet)
+	Deliver(head *BatchHeader, data [][]byte, sigs [][]byte)
 	SetReceiver(receiver Receiver)
 	Persist(key string, data proto.Message)
 	Restore(key string, out proto.Message) bool
@@ -74,8 +74,6 @@ type reqInfo struct {
 	commit         map[uint64]*Subject
 	sentCommit     bool
 	executed       bool
-	state          []byte
-	checkpointRaw  map[uint64]*Signed
 	checkpoint     map[uint64]*Checkpoint
 	checkpointDone bool
 }
@@ -133,14 +131,11 @@ func New(id uint64, config *Config, sys System) (*SBFT, error) {
 	cpset := &CheckpointSet{}
 	if s.sys.Restore("checkpoint", cpset) {
 		// get one entry
-		var r uint64
-		var cs *Signed
-		for r, cs = range cpset.CheckpointSet {
+		var c *Checkpoint
+		for _, c = range cpset.CheckpointSet {
 			break
 		}
 
-		c := &Checkpoint{}
-		s.checkSig(cs, r, c)
 		if c.Seq == s.cur.subject.Seq.Seq {
 			s.cur.timeout.Cancel()
 			s.seq = *s.cur.subject.Seq

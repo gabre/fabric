@@ -162,6 +162,12 @@ func TestByzPrimary(t *testing.T) {
 				d.Digest[0] = r2
 				pp := *pp
 				pp.Set, _ = proto.Marshal(d)
+				h := repls[0].hash(pp.Set)
+				bh := &BatchHeader{}
+				proto.Unmarshal(pp.BatchHeader, bh)
+				bh.DataHash = h
+				bhraw, _ := proto.Marshal(bh)
+				pp.BatchHeader = bhraw
 				msg.msg = &Msg{&Msg_Preprepare{&pp}}
 			}
 		}

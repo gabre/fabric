@@ -44,7 +44,7 @@ func (s *SBFT) sign(msg proto.Message) *Signed {
 }
 
 func (s *SBFT) checkSig(sig *Signed, signer uint64, msg proto.Message) error {
-	err := s.sys.CheckSig(sig.Data, signer, sig.Signature)
+	err := s.checkBytesSig(sig.Data, signer, sig.Signature)
 	if err != nil {
 		return err
 	}
@@ -53,4 +53,8 @@ func (s *SBFT) checkSig(sig *Signed, signer uint64, msg proto.Message) error {
 		return err
 	}
 	return nil
+}
+
+func (s *SBFT) checkBytesSig(digest []byte, signer uint64, sig []byte) error {
+	return s.sys.CheckSig(digest, signer, sig)
 }

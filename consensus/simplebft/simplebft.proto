@@ -35,7 +35,7 @@ message msg {
                 subject commit = 5;
                 signed view_change = 6;
                 new_view new_view = 7;
-                signed checkpoint = 8;
+                checkpoint checkpoint = 8;
         };
 };
 
@@ -59,9 +59,16 @@ message digest_set {
         repeated bytes digest = 1;
 };
 
+message batch_header {
+        uint64 seq = 1;
+        bytes prev_hash = 2;
+        bytes data_hash = 3;
+};
+
 message preprepare {
         seq seq = 1;
-        bytes set = 2;          // contains a digest_set
+        bytes batch_header = 2;
+        bytes set = 3;          // contains a digest_set
 };
 
 message subject {
@@ -90,9 +97,10 @@ message new_view {
 
 message checkpoint {
         uint64 seq = 1;
-        bytes state = 2;
+        bytes digest = 2;
+        bytes signature = 3;
 };
 
 message checkpoint_set {
-        map<uint64, signed> checkpoint_set = 1;
+        map<uint64, checkpoint> checkpoint_set = 1;
 };

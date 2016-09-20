@@ -17,6 +17,7 @@ limitations under the License.
 package simplebft
 
 import (
+	"reflect"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -35,10 +36,22 @@ func (s *SBFT) sendPreprepare(batch []*Request) {
 	if err != nil {
 		panic(err)
 	}
+	datahash := s.hash(rawSet)
+
+	batchhead := &BatchHeader{
+		Seq:      seq.Seq,
+		PrevHash: []byte("XXX"),
+		DataHash: datahash[:],
+	}
+	rawBatch, err := proto.Marshal(batchhead)
+	if err != nil {
+		panic(err)
+	}
 
 	m := &Preprepare{
-		Seq: &seq,
-		Set: rawSet,
+		Seq:         &seq,
+		BatchHeader: rawBatch,
+		Set:         rawSet,
 	}
 
 	s.sys.Persist("preprepare", m)
@@ -55,28 +68,40 @@ func (s *SBFT) handlePreprepare(pp *Preprepare, src uint64) {
 		log.Infof("preprepare does not match expected %v, got %v", nextSeq, *pp.Seq)
 		return
 	}
-	h := s.hash(pp.Set)
+	datahash := s.hash(pp.Set)
+	blockhash := s.hash(pp.BatchHeader)
 
-	payload := &DigestSet{}
-	err := proto.Unmarshal(pp.Set, payload)
+	batchheader := &BatchHeader{}
+	err := proto.Unmarshal(pp.BatchHeader, batchheader)
 	if err != nil {
-		log.Infof("preprepare digest set malformed in preprepare %v from %s, %s", s.seq, src, h)
+		log.Infof("preprepare batch header malformed in preprepare from %d", src)
 		return
 	}
 
-	s.acceptPreprepare(Subject{Seq: &nextSeq, Digest: h}, payload, pp)
+	if batchheader.Seq != pp.Seq.Seq || !reflect.DeepEqual(datahash[:], batchheader.DataHash) {
+		log.Infof("preprepare %v batch head inconsistent from %d", pp.Seq, src)
+		return
+	}
+
+	payload := &DigestSet{}
+	err = proto.Unmarshal(pp.Set, payload)
+	if err != nil {
+		log.Infof("preprepare digest set malformed in preprepare %v from %s, %s", s.seq, src, blockhash)
+		return
+	}
+
+	s.acceptPreprepare(Subject{Seq: &nextSeq, Digest: datahash}, payload, pp)
 }
 
 func (s *SBFT) acceptPreprepare(sub Subject, payload *DigestSet, pp *Preprepare) {
 	s.cur = reqInfo{
-		subject:       sub,
-		timeout:       s.sys.Timer(time.Duration(s.config.RequestTimeoutNsec)*time.Nanosecond, s.requestTimeout),
-		payload:       payload,
-		preprep:       pp,
-		prep:          make(map[uint64]*Subject),
-		commit:        make(map[uint64]*Subject),
-		checkpointRaw: make(map[uint64]*Signed),
-		checkpoint:    make(map[uint64]*Checkpoint),
+		subject:    sub,
+		timeout:    s.sys.Timer(time.Duration(s.config.RequestTimeoutNsec)*time.Nanosecond, s.requestTimeout),
+		payload:    payload,
+		preprep:    pp,
+		prep:       make(map[uint64]*Subject),
+		commit:     make(map[uint64]*Subject),
+		checkpoint: make(map[uint64]*Checkpoint),
 	}
 
 	log.Infof("accepting preprepare for %v, %x", sub.Seq, sub.Digest)

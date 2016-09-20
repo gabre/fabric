@@ -19,27 +19,22 @@ package simplebft
 import (
 	"fmt"
 	"reflect"
+
+	"github.com/golang/protobuf/proto"
 )
 
 func (s *SBFT) sendCheckpoint() {
-	state := []byte("XXX")
-	s.cur.state = state
+	sig := s.sys.Sign(s.cur.subject.Digest)
 	c := &Checkpoint{
-		Seq:   s.seq.Seq,
-		State: state,
+		Seq:       s.cur.subject.Seq.Seq,
+		Digest:    s.cur.subject.Digest,
+		Signature: sig,
 	}
-	cs := s.sign(c)
-	s.broadcast(&Msg{&Msg_Checkpoint{cs}})
+	s.broadcast(&Msg{&Msg_Checkpoint{c}})
 }
 
-func (s *SBFT) handleCheckpoint(cs *Signed, src uint64) {
+func (s *SBFT) handleCheckpoint(c *Checkpoint, src uint64) {
 	if s.cur.checkpointDone {
-		return
-	}
-
-	c := &Checkpoint{}
-	err := s.checkSig(cs, src, c)
-	if err != nil {
 		return
 	}
 
@@ -47,6 +42,13 @@ func (s *SBFT) handleCheckpoint(cs *Signed, src uint64) {
 		// old message
 		return
 	}
+
+	err := s.checkBytesSig(c.Digest, src, c.Signature)
+	if err != nil {
+		log.Infof("checkpoint signature invalid for %d from %d", c.Seq, src)
+		return
+	}
+
 	// TODO should we always accept checkpoints?
 	if c.Seq != s.cur.subject.Seq.Seq {
 		log.Infof("checkpoint does not match expected subject %v, got %v", &s.cur.subject, c)
@@ -56,12 +58,11 @@ func (s *SBFT) handleCheckpoint(cs *Signed, src uint64) {
 		log.Infof("duplicate checkpoint for %d from %d", c.Seq, src)
 	}
 	s.cur.checkpoint[src] = c
-	s.cur.checkpointRaw[src] = cs
 
 	max := "_"
 	sums := make(map[string][]uint64)
 	for csrc, c := range s.cur.checkpoint {
-		sum := fmt.Sprintf("%x", c.State)
+		sum := fmt.Sprintf("%x", c.Digest)
 		sums[sum] = append(sums[sum], csrc)
 
 		if len(sums[sum]) >= s.oneCorrectQuorum() {
@@ -76,24 +77,32 @@ func (s *SBFT) handleCheckpoint(cs *Signed, src uint64) {
 
 	// got a stable checkpoint
 
-	cpset := &CheckpointSet{make(map[uint64]*Signed)}
+	cpset := &CheckpointSet{make(map[uint64]*Checkpoint)}
+	var sigs [][]byte
 	for _, r := range replicas {
-		cpset.CheckpointSet[r] = s.cur.checkpointRaw[r]
+		cp := s.cur.checkpoint[r]
+		cpset.CheckpointSet[r] = cp
+		sigs = append(sigs, cp.Signature)
 	}
 	s.sys.Persist("checkpoint", cpset)
 	s.cur.checkpointDone = true
 
 	c = s.cur.checkpoint[replicas[0]]
 
-	if !reflect.DeepEqual(c.State, s.cur.state) {
+	if !reflect.DeepEqual(c.Digest, s.cur.subject.Digest) {
 		log.Fatalf("weak checkpoint %x does not match our state %x",
-			c.State, s.cur.state)
+			c.Digest, s.cur.subject.Digest)
 		// NOT REACHED
 	}
 
 	// ignore null requests
 	if s.cur.payload.Digest != nil {
-		s.sys.Deliver(s.cur.subject.Seq.Seq, s.cur.payload.Digest, cpset)
+		bh := &BatchHeader{}
+		err = proto.Unmarshal(s.cur.preprep.BatchHeader, bh)
+		if err != nil {
+			panic(err)
+		}
+		s.sys.Deliver(bh, s.cur.payload.Digest, sigs)
 	}
 
 	s.maybeSendNextBatch()
