@@ -33,6 +33,10 @@ func (s *SBFT) sendCheckpoint() {
 }
 
 func (s *SBFT) handleCheckpoint(cs *Signed, src uint64) {
+	if s.cur.checkpointDone {
+		return
+	}
+
 	c := &Checkpoint{}
 	err := s.checkSig(cs, src, c)
 	if err != nil {
@@ -51,23 +55,22 @@ func (s *SBFT) handleCheckpoint(cs *Signed, src uint64) {
 	if _, ok := s.cur.checkpoint[src]; ok {
 		log.Infof("duplicate checkpoint for %d from %d", c.Seq, src)
 	}
-	s.cur.checkpoint[src] = cs
+	s.cur.checkpoint[src] = c
+	s.cur.checkpointRaw[src] = cs
 
 	max := "_"
 	sums := make(map[string][]uint64)
-	for csrc, cs := range s.cur.checkpoint {
-		c := &Checkpoint{}
-		s.checkSig(cs, csrc, c)
+	for csrc, c := range s.cur.checkpoint {
 		sum := fmt.Sprintf("%x", c.State)
 		sums[sum] = append(sums[sum], csrc)
 
-		if len(sums[sum]) >= s.noFaultyQuorum() {
+		if len(sums[sum]) >= s.oneCorrectQuorum() {
 			max = sum
 		}
 	}
 
 	replicas, ok := sums[max]
-	if !ok || len(sums[max]) != s.noFaultyQuorum() {
+	if !ok || len(sums[max]) != s.oneCorrectQuorum() {
 		return
 	}
 
@@ -75,17 +78,22 @@ func (s *SBFT) handleCheckpoint(cs *Signed, src uint64) {
 
 	cpset := &CheckpointSet{make(map[uint64]*Signed)}
 	for _, r := range replicas {
-		cpset.CheckpointSet[r] = s.cur.checkpoint[r]
+		cpset.CheckpointSet[r] = s.cur.checkpointRaw[r]
 	}
 	s.sys.Persist("checkpoint", cpset)
+	s.cur.checkpointDone = true
 
-	cs = s.cur.checkpoint[replicas[0]]
-	s.checkSig(cs, replicas[0], c)
+	c = s.cur.checkpoint[replicas[0]]
 
 	if !reflect.DeepEqual(c.State, s.cur.state) {
-		log.Fatalf("stable checkpoint %x does not match our state %x",
+		log.Fatalf("weak checkpoint %x does not match our state %x",
 			c.State, s.cur.state)
 		// NOT REACHED
+	}
+
+	// ignore null requests
+	if s.cur.payload.Digest != nil {
+		s.sys.Deliver(s.cur.subject.Seq.Seq, s.cur.payload.Digest, cpset)
 	}
 
 	s.maybeSendNextBatch()

@@ -122,7 +122,7 @@ func (t *testSystemAdapter) Timer(d time.Duration, tf timerFunc) Canceller {
 	return tt
 }
 
-func (t *testSystemAdapter) Deliver(batch [][]byte) {
+func (t *testSystemAdapter) Deliver(seq uint64, batch [][]byte, cpset *CheckpointSet) {
 	t.batches = append(t.batches, batch)
 }
 

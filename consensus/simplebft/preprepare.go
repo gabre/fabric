@@ -69,13 +69,14 @@ func (s *SBFT) handlePreprepare(pp *Preprepare, src uint64) {
 
 func (s *SBFT) acceptPreprepare(sub Subject, payload *DigestSet, pp *Preprepare) {
 	s.cur = reqInfo{
-		subject:    sub,
-		timeout:    s.sys.Timer(time.Duration(s.config.RequestTimeoutNsec)*time.Nanosecond, s.requestTimeout),
-		payload:    payload,
-		preprep:    pp,
-		prep:       make(map[uint64]*Subject),
-		commit:     make(map[uint64]*Subject),
-		checkpoint: make(map[uint64]*Signed),
+		subject:       sub,
+		timeout:       s.sys.Timer(time.Duration(s.config.RequestTimeoutNsec)*time.Nanosecond, s.requestTimeout),
+		payload:       payload,
+		preprep:       pp,
+		prep:          make(map[uint64]*Subject),
+		commit:        make(map[uint64]*Subject),
+		checkpointRaw: make(map[uint64]*Signed),
+		checkpoint:    make(map[uint64]*Checkpoint),
 	}
 
 	log.Infof("accepting preprepare for %v, %x", sub.Seq, sub.Digest)

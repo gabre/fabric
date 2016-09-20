@@ -25,10 +25,7 @@ func (s *SBFT) maybeExecute() {
 	s.seq = *s.cur.subject.Seq
 	log.Noticef("executing %v", s.seq)
 
-	// ignore null requests
-	if s.cur.payload.Digest != nil {
-		s.sys.Deliver(s.cur.payload.Digest)
-	}
+	s.sys.Persist("execute", &s.cur.subject)
 
 	s.sendCheckpoint()
 }

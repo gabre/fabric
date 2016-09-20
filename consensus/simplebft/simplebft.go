@@ -32,7 +32,7 @@ type Receiver interface {
 type System interface {
 	Send(msg *Msg, dest uint64)
 	Timer(d time.Duration, t timerFunc) Canceller
-	Deliver(batch [][]byte)
+	Deliver(seq uint64, batch [][]byte, cpset *CheckpointSet)
 	SetReceiver(receiver Receiver)
 	Persist(key string, data proto.Message)
 	Restore(key string, out proto.Message) bool
@@ -66,16 +66,18 @@ type SBFT struct {
 }
 
 type reqInfo struct {
-	subject    Subject
-	timeout    Canceller
-	payload    *DigestSet
-	preprep    *Preprepare
-	prep       map[uint64]*Subject
-	commit     map[uint64]*Subject
-	sentCommit bool
-	executed   bool
-	state      []byte
-	checkpoint map[uint64]*Signed
+	subject        Subject
+	timeout        Canceller
+	payload        *DigestSet
+	preprep        *Preprepare
+	prep           map[uint64]*Subject
+	commit         map[uint64]*Subject
+	sentCommit     bool
+	executed       bool
+	state          []byte
+	checkpointRaw  map[uint64]*Signed
+	checkpoint     map[uint64]*Checkpoint
+	checkpointDone bool
 }
 
 type viewChangeInfo struct {
@@ -120,6 +122,12 @@ func New(id uint64, config *Config, sys System) (*SBFT, error) {
 	c := &Subject{}
 	if s.sys.Restore("commit", c) && reflect.DeepEqual(c, &s.cur.subject) {
 		s.cur.sentCommit = true
+		// XXX send commit
+	}
+	ex := &Subject{}
+	if s.sys.Restore("execute", ex) && reflect.DeepEqual(c, &s.cur.subject) {
+		s.cur.executed = true
+		// XXX send checkpoint
 	}
 	// TODO use block chain (execute) instead
 	cpset := &CheckpointSet{}
