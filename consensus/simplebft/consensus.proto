@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package simplebft;
+
+import "simplebft.proto";
+
+service consensus {
+    rpc consensus(handshake) returns (stream msg) {}
+}
+
+message handshake {
+}
