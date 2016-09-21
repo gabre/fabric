@@ -161,7 +161,7 @@ func TestByzPrimary(t *testing.T) {
 				batch := *pp.Batch
 				batch.Payloads = [][]byte{r2}
 				pp.Batch = &batch
-				h := repls[0].merkleHashData(batch.Payloads)
+				h := merkleHashData(batch.Payloads)
 				bh := &BatchHeader{}
 				proto.Unmarshal(pp.Batch.Header, bh)
 				bh.DataHash = h

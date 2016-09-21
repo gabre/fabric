@@ -30,7 +30,7 @@ func (s *SBFT) sendPreprepare(batch []*Request) {
 		data[i] = req.Payload
 	}
 
-	datahash := s.merkleHashData(data)
+	datahash := merkleHashData(data)
 
 	batchhead := &BatchHeader{
 		Seq:      seq.Seq,
@@ -64,7 +64,7 @@ func (s *SBFT) handlePreprepare(pp *Preprepare, src uint64) {
 		log.Infof("preprepare does not match expected %v, got %v", nextSeq, *pp.Seq)
 		return
 	}
-	blockhash := s.hash(pp.Batch.Header)
+	blockhash := hash(pp.Batch.Header)
 
 	batchheader, err := s.checkBatch(pp.Batch)
 	if err != nil || batchheader.Seq != pp.Seq.Seq {

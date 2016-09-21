@@ -99,9 +99,9 @@ func (s *SBFT) handleNewView(nv *NewView, src uint64) {
 		return
 	}
 
-	if !(nv.Xset.Digest == nil && nv.Batch == nil) && !reflect.DeepEqual(s.hash(nv.Batch.Header), nv.Xset.Digest) {
+	if !(nv.Xset.Digest == nil && nv.Batch == nil) && !reflect.DeepEqual(hash(nv.Batch.Header), nv.Xset.Digest) {
 		log.Warningf("invalid new view from %d: batch head hash does not match xset: %x, %x, %v",
-			src, s.hash(nv.Batch.Header), nv.Xset.Digest, nv)
+			src, hash(nv.Batch.Header), nv.Xset.Digest, nv)
 		s.sendViewChange()
 		return
 	}
@@ -145,7 +145,7 @@ func (s *SBFT) processNewView() {
 	s.activeView = true
 	var h []byte
 	if nv.Batch != nil {
-		h = s.hash(nv.Batch.Header)
+		h = hash(nv.Batch.Header)
 	}
 	s.acceptPreprepare(Subject{Seq: &nextSeq, Digest: h}, pp)
 }

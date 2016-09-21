@@ -24,7 +24,7 @@ import (
 )
 
 func (s *SBFT) checkBatch(b *Batch) (*BatchHeader, error) {
-	datahash := s.merkleHashData(b.Payloads)
+	datahash := merkleHashData(b.Payloads)
 
 	batchheader := &BatchHeader{}
 	err := proto.Unmarshal(b.Header, batchheader)

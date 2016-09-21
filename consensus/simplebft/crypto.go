@@ -27,20 +27,20 @@ func hash2str(h []byte) string {
 	return base64.RawStdEncoding.EncodeToString(h)
 }
 
-func (s *SBFT) hash(data []byte) []byte {
+func hash(data []byte) []byte {
 	h := sha256.Sum256(data)
 	return h[:]
 }
 
-func (s *SBFT) merkleHashData(data [][]byte) []byte {
+func merkleHashData(data [][]byte) []byte {
 	var digests [][]byte
 	for _, d := range data {
-		digests = append(digests, s.hash(d))
+		digests = append(digests, hash(d))
 	}
-	return s.merkleHashDigests(digests)
+	return merkleHashDigests(digests)
 }
 
-func (s *SBFT) merkleHashDigests(digests [][]byte) []byte {
+func merkleHashDigests(digests [][]byte) []byte {
 	for len(digests) > 1 {
 		var nextDigests [][]byte
 		var prev []byte
