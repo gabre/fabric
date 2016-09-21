@@ -31,7 +31,7 @@ type Receiver interface {
 
 type System interface {
 	Send(msg *Msg, dest uint64)
-	Timer(d time.Duration, t timerFunc) Canceller
+	Timer(d time.Duration, f func()) Canceller
 	Deliver(batch *Batch)
 	SetReceiver(receiver Receiver)
 	Persist(key string, data proto.Message)
@@ -39,8 +39,6 @@ type System interface {
 	Sign(data []byte) []byte
 	CheckSig(data []byte, src uint64, sig []byte) error
 }
-
-type timerFunc func()
 
 type Canceller interface {
 	Cancel()

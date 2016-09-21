@@ -97,7 +97,7 @@ func (ev *testMsgEvent) String() string {
 
 type testTimer struct {
 	id        uint64
-	tf        timerFunc
+	tf        func()
 	cancelled bool
 }
 
@@ -116,7 +116,7 @@ func (t *testTimer) String() string {
 	return fmt.Sprintf("Timer<on %d, cancelled %v, fun %s>", t.id, t.cancelled, fun)
 }
 
-func (t *testSystemAdapter) Timer(d time.Duration, tf timerFunc) Canceller {
+func (t *testSystemAdapter) Timer(d time.Duration, tf func()) Canceller {
 	tt := &testTimer{id: t.id, tf: tf}
 	t.sys.enqueue(d, tt)
 	return tt
