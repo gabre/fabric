@@ -102,7 +102,12 @@ func (s *SBFT) handleCheckpoint(c *Checkpoint, src uint64) {
 		if err != nil {
 			panic(err)
 		}
-		s.sys.Deliver(bh, s.cur.payload.Digest, sigs)
+		batch := &Batch{
+			Header:     s.cur.preprep.BatchHeader,
+			Requests:   s.cur.payload.Digest,
+			Signatures: sigs,
+		}
+		s.sys.Deliver(batch)
 	}
 
 	s.maybeSendNextBatch()

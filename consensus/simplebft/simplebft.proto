@@ -65,6 +65,12 @@ message batch_header {
         bytes data_hash = 3;
 };
 
+message batch {
+        bytes header = 1;
+        repeated bytes requests = 2;
+        repeated bytes signatures = 3;
+};
+
 message preprepare {
         seq seq = 1;
         bytes batch_header = 2;

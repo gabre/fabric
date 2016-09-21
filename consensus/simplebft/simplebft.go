@@ -32,7 +32,7 @@ type Receiver interface {
 type System interface {
 	Send(msg *Msg, dest uint64)
 	Timer(d time.Duration, t timerFunc) Canceller
-	Deliver(head *BatchHeader, data [][]byte, sigs [][]byte)
+	Deliver(batch *Batch)
 	SetReceiver(receiver Receiver)
 	Persist(key string, data proto.Message)
 	Restore(key string, out proto.Message) bool

@@ -17,6 +17,7 @@ It has these top-level messages:
 	Seq
 	DigestSet
 	BatchHeader
+	Batch
 	Preprepare
 	Subject
 	ViewChange
@@ -352,6 +353,16 @@ type BatchHeader struct {
 func (m *BatchHeader) Reset()         { *m = BatchHeader{} }
 func (m *BatchHeader) String() string { return proto.CompactTextString(m) }
 func (*BatchHeader) ProtoMessage()    {}
+
+type Batch struct {
+	Header     []byte   `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
+	Requests   [][]byte `protobuf:"bytes,2,rep,name=requests,proto3" json:"requests,omitempty"`
+	Signatures [][]byte `protobuf:"bytes,3,rep,name=signatures,proto3" json:"signatures,omitempty"`
+}
+
+func (m *Batch) Reset()         { *m = Batch{} }
+func (m *Batch) String() string { return proto.CompactTextString(m) }
+func (*Batch) ProtoMessage()    {}
 
 type Preprepare struct {
 	Seq         *Seq   `protobuf:"bytes,1,opt,name=seq" json:"seq,omitempty"`
