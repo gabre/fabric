@@ -17,6 +17,9 @@ limitations under the License.
 package simplebft
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"testing"
 	"time"
 )
@@ -46,3 +49,13 @@ func TestSys(t *testing.T) {
 // 		t.Fatal("expected execution")
 // 	}
 // }
+
+func BenchmarkEcdsa(b *testing.B) {
+	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	val := make([]byte, 32, 32)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		ecdsa.Sign(rand.Reader, key, val)
+	}
+}
