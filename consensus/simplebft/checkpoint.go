@@ -19,8 +19,6 @@ package simplebft
 import (
 	"fmt"
 	"reflect"
-
-	"github.com/golang/protobuf/proto"
 )
 
 func (s *SBFT) sendCheckpoint() {
@@ -96,18 +94,10 @@ func (s *SBFT) handleCheckpoint(c *Checkpoint, src uint64) {
 	}
 
 	// ignore null requests
-	if s.cur.payload.Digest != nil {
-		bh := &BatchHeader{}
-		err = proto.Unmarshal(s.cur.preprep.BatchHeader, bh)
-		if err != nil {
-			panic(err)
-		}
-		batch := &Batch{
-			Header:     s.cur.preprep.BatchHeader,
-			Requests:   s.cur.payload.Digest,
-			Signatures: sigs,
-		}
-		s.sys.Deliver(batch)
+	if s.cur.preprep.Batch != nil {
+		batch := *s.cur.preprep.Batch
+		batch.Signatures = sigs
+		s.sys.Deliver(&batch)
 	}
 
 	s.maybeSendNextBatch()

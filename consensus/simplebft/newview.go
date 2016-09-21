@@ -19,8 +19,6 @@ package simplebft
 import (
 	"fmt"
 	"reflect"
-
-	"github.com/golang/protobuf/proto"
 )
 
 func (s *SBFT) maybeSendNewView() {
@@ -44,10 +42,10 @@ func (s *SBFT) maybeSendNewView() {
 		return
 	}
 
-	var payload []byte
+	var batch *Batch
 	if xset.Digest != nil {
 		if reflect.DeepEqual(s.cur.subject.Digest, xset.Digest) {
-			payload = s.cur.preprep.Set
+			batch = s.cur.preprep.Batch
 		} else {
 			log.Warningf("forfeiting primary - do not have request in store for %d %x", xset.Seq.Seq, xset.Digest)
 			xset = nil
@@ -55,10 +53,10 @@ func (s *SBFT) maybeSendNewView() {
 	}
 
 	nv := &NewView{
-		View:        s.seq.View,
-		Vset:        vset,
-		Xset:        xset,
-		XsetPayload: payload,
+		View:  s.seq.View,
+		Vset:  vset,
+		Xset:  xset,
+		Batch: batch,
 	}
 
 	log.Noticef("sending new view for %d", nv.View)
@@ -101,21 +99,21 @@ func (s *SBFT) handleNewView(nv *NewView, src uint64) {
 		return
 	}
 
-	h := s.hash(nv.XsetPayload)
-	if !(nv.Xset.Digest == nil && nv.XsetPayload == nil) && !reflect.DeepEqual(h, nv.Xset.Digest) {
-		log.Warningf("invalid new view from %d: payload hash does not match xset: %x, %x, %v",
-			src, h, nv.Xset.Digest, nv)
+	if !(nv.Xset.Digest == nil && nv.Batch == nil) && !reflect.DeepEqual(s.hash(nv.Batch.Header), nv.Xset.Digest) {
+		log.Warningf("invalid new view from %d: batch head hash does not match xset: %x, %x, %v",
+			src, s.hash(nv.Batch.Header), nv.Xset.Digest, nv)
 		s.sendViewChange()
 		return
 	}
 
-	payload := &DigestSet{}
-	err := proto.Unmarshal(nv.XsetPayload, payload)
-	if err != nil {
-		log.Warningf("invalid new view from %d: digest set malformed for %x",
-			src, nv.Xset.Digest)
-		s.sendViewChange()
-		return
+	if nv.Batch != nil {
+		_, err := s.checkBatch(nv.Batch)
+		if err != nil {
+			log.Warningf("invalid new view from %d: invalid batch, %s",
+				src, err)
+			s.sendViewChange()
+			return
+		}
 	}
 
 	s.newview[s.primaryIdView(nv.View)] = nv
@@ -139,18 +137,15 @@ func (s *SBFT) processNewView() {
 		return
 	}
 
-	h := s.hash(nv.XsetPayload)
-	payload := &DigestSet{}
-	err := proto.Unmarshal(nv.XsetPayload, payload)
-	if err != nil {
-		panic(err)
-	}
-
 	pp := &Preprepare{
-		Seq: nv.Xset.Seq,
-		Set: nv.XsetPayload,
+		Seq:   nv.Xset.Seq,
+		Batch: nv.Batch,
 	}
 
 	s.activeView = true
-	s.acceptPreprepare(Subject{Seq: &nextSeq, Digest: h}, payload, pp)
+	var h []byte
+	if nv.Batch != nil {
+		h = s.hash(nv.Batch.Header)
+	}
+	s.acceptPreprepare(Subject{Seq: &nextSeq, Digest: h}, pp)
 }

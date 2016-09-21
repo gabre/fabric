@@ -68,7 +68,6 @@ type SBFT struct {
 type reqInfo struct {
 	subject        Subject
 	timeout        Canceller
-	payload        *DigestSet
 	preprep        *Preprepare
 	prep           map[uint64]*Subject
 	commit         map[uint64]*Subject

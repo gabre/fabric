@@ -17,7 +17,6 @@ limitations under the License.
 package simplebft
 
 import (
-	"reflect"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -26,32 +25,29 @@ import (
 func (s *SBFT) sendPreprepare(batch []*Request) {
 	seq := s.nextSeq()
 
-	set := &DigestSet{Digest: make([][]byte, len(batch))}
-
+	data := make([][]byte, len(batch))
 	for i, req := range batch {
-		set.Digest[i] = req.Payload
+		data[i] = req.Payload
 	}
 
-	rawSet, err := proto.Marshal(set)
-	if err != nil {
-		panic(err)
-	}
-	datahash := s.hash(rawSet)
+	datahash := s.merkleHashData(data)
 
 	batchhead := &BatchHeader{
 		Seq:      seq.Seq,
 		PrevHash: []byte("XXX"),
-		DataHash: datahash[:],
+		DataHash: datahash,
 	}
-	rawBatch, err := proto.Marshal(batchhead)
+	rawHeader, err := proto.Marshal(batchhead)
 	if err != nil {
 		panic(err)
 	}
 
 	m := &Preprepare{
-		Seq:         &seq,
-		BatchHeader: rawBatch,
-		Set:         rawSet,
+		Seq: &seq,
+		Batch: &Batch{
+			Header:   rawHeader,
+			Payloads: data,
+		},
 	}
 
 	s.sys.Persist("preprepare", m)
@@ -68,36 +64,21 @@ func (s *SBFT) handlePreprepare(pp *Preprepare, src uint64) {
 		log.Infof("preprepare does not match expected %v, got %v", nextSeq, *pp.Seq)
 		return
 	}
-	datahash := s.hash(pp.Set)
-	blockhash := s.hash(pp.BatchHeader)
+	blockhash := s.hash(pp.Batch.Header)
 
-	batchheader := &BatchHeader{}
-	err := proto.Unmarshal(pp.BatchHeader, batchheader)
-	if err != nil {
-		log.Infof("preprepare batch header malformed in preprepare from %d", src)
-		return
-	}
-
-	if batchheader.Seq != pp.Seq.Seq || !reflect.DeepEqual(datahash[:], batchheader.DataHash) {
+	batchheader, err := s.checkBatch(pp.Batch)
+	if err != nil || batchheader.Seq != pp.Seq.Seq {
 		log.Infof("preprepare %v batch head inconsistent from %d", pp.Seq, src)
 		return
 	}
 
-	payload := &DigestSet{}
-	err = proto.Unmarshal(pp.Set, payload)
-	if err != nil {
-		log.Infof("preprepare digest set malformed in preprepare %v from %s, %s", s.seq, src, blockhash)
-		return
-	}
-
-	s.acceptPreprepare(Subject{Seq: &nextSeq, Digest: datahash}, payload, pp)
+	s.acceptPreprepare(Subject{Seq: &nextSeq, Digest: blockhash}, pp)
 }
 
-func (s *SBFT) acceptPreprepare(sub Subject, payload *DigestSet, pp *Preprepare) {
+func (s *SBFT) acceptPreprepare(sub Subject, pp *Preprepare) {
 	s.cur = reqInfo{
 		subject:    sub,
 		timeout:    s.sys.Timer(time.Duration(s.config.RequestTimeoutNsec)*time.Nanosecond, s.requestTimeout),
-		payload:    payload,
 		preprep:    pp,
 		prep:       make(map[uint64]*Subject),
 		commit:     make(map[uint64]*Subject),

@@ -59,10 +59,10 @@ func TestSBFT(t *testing.T) {
 		if len(a.batches) != 2 {
 			t.Fatal("expected execution of 2 batches")
 		}
-		if !reflect.DeepEqual([][]byte{r1}, a.batches[0].Requests) {
+		if !reflect.DeepEqual([][]byte{r1}, a.batches[0].Payloads) {
 			t.Error("wrong request executed (1)")
 		}
-		if !reflect.DeepEqual([][]byte{r2, r3}, a.batches[1].Requests) {
+		if !reflect.DeepEqual([][]byte{r2, r3}, a.batches[1].Payloads) {
 			t.Error("wrong request executed (2)")
 		}
 	}
@@ -99,10 +99,10 @@ func TestSBFTDelayed(t *testing.T) {
 			t.Errorf("expected execution of 2 batches on %d", i)
 			continue
 		}
-		if !reflect.DeepEqual([][]byte{r1}, a.batches[0].Requests) {
+		if !reflect.DeepEqual([][]byte{r1}, a.batches[0].Payloads) {
 			t.Error("wrong request executed (1)")
 		}
-		if !reflect.DeepEqual([][]byte{r2}, a.batches[1].Requests) {
+		if !reflect.DeepEqual([][]byte{r2}, a.batches[1].Payloads) {
 			t.Error("wrong request executed (2)")
 		}
 	}
@@ -129,7 +129,7 @@ func TestN1(t *testing.T) {
 		if len(a.batches) != 1 {
 			t.Fatal("expected execution of 1 batch")
 		}
-		if !reflect.DeepEqual([][]byte{r1}, a.batches[0].Requests) {
+		if !reflect.DeepEqual([][]byte{r1}, a.batches[0].Payloads) {
 			t.Error("wrong request executed (1)")
 		}
 	}
@@ -157,17 +157,16 @@ func TestByzPrimary(t *testing.T) {
 	sys.filterFn = func(e testElem) (testElem, bool) {
 		if msg, ok := e.ev.(*testMsgEvent); ok {
 			if pp := msg.msg.GetPreprepare(); pp != nil && msg.src == 0 && msg.dst >= 2 {
-				d := &DigestSet{}
-				proto.Unmarshal(pp.Set, d)
-				d.Digest[0] = r2
 				pp := *pp
-				pp.Set, _ = proto.Marshal(d)
-				h := repls[0].hash(pp.Set)
+				batch := *pp.Batch
+				batch.Payloads = [][]byte{r2}
+				pp.Batch = &batch
+				h := repls[0].merkleHashData(batch.Payloads)
 				bh := &BatchHeader{}
-				proto.Unmarshal(pp.BatchHeader, bh)
+				proto.Unmarshal(pp.Batch.Header, bh)
 				bh.DataHash = h
 				bhraw, _ := proto.Marshal(bh)
-				pp.BatchHeader = bhraw
+				pp.Batch.Header = bhraw
 				msg.msg = &Msg{&Msg_Preprepare{&pp}}
 			}
 		}
@@ -180,7 +179,7 @@ func TestByzPrimary(t *testing.T) {
 		if len(a.batches) != 1 {
 			t.Fatal("expected execution of 1 batch")
 		}
-		if !reflect.DeepEqual([][]byte{r2}, a.batches[0].Requests) {
+		if !reflect.DeepEqual([][]byte{r2}, a.batches[0].Payloads) {
 			t.Error("wrong request executed")
 		}
 	}
@@ -218,7 +217,7 @@ func TestViewChange(t *testing.T) {
 		if len(a.batches) != 1 {
 			t.Fatal("expected execution of 1 batch")
 		}
-		if !reflect.DeepEqual([][]byte{r1}, a.batches[0].Requests) {
+		if !reflect.DeepEqual([][]byte{r1}, a.batches[0].Payloads) {
 			t.Error("wrong request executed (1)")
 		}
 	}
@@ -290,7 +289,7 @@ func TestViewChangeXset(t *testing.T) {
 		if len(a.batches) != 1 {
 			t.Fatal("expected execution of 1 batch")
 		}
-		if !reflect.DeepEqual([][]byte{r2}, a.batches[0].Requests) {
+		if !reflect.DeepEqual([][]byte{r2}, a.batches[0].Payloads) {
 			t.Error("wrong request executed")
 		}
 	}
@@ -331,10 +330,10 @@ func TestRestart(t *testing.T) {
 		if len(a.batches) != 2 {
 			t.Fatal("expected execution of 2 batches")
 		}
-		if !reflect.DeepEqual([][]byte{r1}, a.batches[0].Requests) {
+		if !reflect.DeepEqual([][]byte{r1}, a.batches[0].Payloads) {
 			t.Error("wrong request executed (1)")
 		}
-		if !reflect.DeepEqual([][]byte{r2, r3}, a.batches[1].Requests) {
+		if !reflect.DeepEqual([][]byte{r2, r3}, a.batches[1].Payloads) {
 			t.Error("wrong request executed (2)")
 		}
 	}

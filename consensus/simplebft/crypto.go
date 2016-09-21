@@ -32,6 +32,38 @@ func (s *SBFT) hash(data []byte) []byte {
 	return h[:]
 }
 
+func (s *SBFT) merkleHashData(data [][]byte) []byte {
+	var digests [][]byte
+	for _, d := range data {
+		digests = append(digests, s.hash(d))
+	}
+	return s.merkleHashDigests(digests)
+}
+
+func (s *SBFT) merkleHashDigests(digests [][]byte) []byte {
+	for len(digests) > 1 {
+		var nextDigests [][]byte
+		var prev []byte
+		for _, d := range digests {
+			if prev == nil {
+				prev = d
+			} else {
+				h := sha256.New()
+				h.Write(prev)
+				h.Write(d)
+				nextDigests = append(nextDigests, h.Sum(nil))
+				prev = nil
+			}
+		}
+		if prev != nil {
+			nextDigests = append(nextDigests, prev)
+		}
+		digests = nextDigests
+	}
+
+	return digests[0]
+}
+
 ////////////////////////////////////////////////
 
 func (s *SBFT) sign(msg proto.Message) *Signed {

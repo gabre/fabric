@@ -15,7 +15,6 @@ It has these top-level messages:
 	FetchRequest
 	QueryState
 	Seq
-	DigestSet
 	BatchHeader
 	Batch
 	Preprepare
@@ -336,14 +335,6 @@ func (m *Seq) Reset()         { *m = Seq{} }
 func (m *Seq) String() string { return proto.CompactTextString(m) }
 func (*Seq) ProtoMessage()    {}
 
-type DigestSet struct {
-	Digest [][]byte `protobuf:"bytes,1,rep,name=digest,proto3" json:"digest,omitempty"`
-}
-
-func (m *DigestSet) Reset()         { *m = DigestSet{} }
-func (m *DigestSet) String() string { return proto.CompactTextString(m) }
-func (*DigestSet) ProtoMessage()    {}
-
 type BatchHeader struct {
 	Seq      uint64 `protobuf:"varint,1,opt,name=seq" json:"seq,omitempty"`
 	PrevHash []byte `protobuf:"bytes,2,opt,name=prev_hash,proto3" json:"prev_hash,omitempty"`
@@ -356,7 +347,7 @@ func (*BatchHeader) ProtoMessage()    {}
 
 type Batch struct {
 	Header     []byte   `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
-	Requests   [][]byte `protobuf:"bytes,2,rep,name=requests,proto3" json:"requests,omitempty"`
+	Payloads   [][]byte `protobuf:"bytes,2,rep,name=payloads,proto3" json:"payloads,omitempty"`
 	Signatures [][]byte `protobuf:"bytes,3,rep,name=signatures,proto3" json:"signatures,omitempty"`
 }
 
@@ -365,9 +356,8 @@ func (m *Batch) String() string { return proto.CompactTextString(m) }
 func (*Batch) ProtoMessage()    {}
 
 type Preprepare struct {
-	Seq         *Seq   `protobuf:"bytes,1,opt,name=seq" json:"seq,omitempty"`
-	BatchHeader []byte `protobuf:"bytes,2,opt,name=batch_header,proto3" json:"batch_header,omitempty"`
-	Set         []byte `protobuf:"bytes,3,opt,name=set,proto3" json:"set,omitempty"`
+	Seq   *Seq   `protobuf:"bytes,1,opt,name=seq" json:"seq,omitempty"`
+	Batch *Batch `protobuf:"bytes,2,opt,name=batch" json:"batch,omitempty"`
 }
 
 func (m *Preprepare) Reset()         { *m = Preprepare{} }
@@ -377,6 +367,13 @@ func (*Preprepare) ProtoMessage()    {}
 func (m *Preprepare) GetSeq() *Seq {
 	if m != nil {
 		return m.Seq
+	}
+	return nil
+}
+
+func (m *Preprepare) GetBatch() *Batch {
+	if m != nil {
+		return m.Batch
 	}
 	return nil
 }
@@ -432,10 +429,10 @@ func (m *Signed) String() string { return proto.CompactTextString(m) }
 func (*Signed) ProtoMessage()    {}
 
 type NewView struct {
-	View        uint64             `protobuf:"varint,1,opt,name=view" json:"view,omitempty"`
-	Vset        map[uint64]*Signed `protobuf:"bytes,2,rep,name=vset" json:"vset,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Xset        *Subject           `protobuf:"bytes,3,opt,name=xset" json:"xset,omitempty"`
-	XsetPayload []byte             `protobuf:"bytes,4,opt,name=xset_payload,proto3" json:"xset_payload,omitempty"`
+	View  uint64             `protobuf:"varint,1,opt,name=view" json:"view,omitempty"`
+	Vset  map[uint64]*Signed `protobuf:"bytes,2,rep,name=vset" json:"vset,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Xset  *Subject           `protobuf:"bytes,3,opt,name=xset" json:"xset,omitempty"`
+	Batch *Batch             `protobuf:"bytes,4,opt,name=batch" json:"batch,omitempty"`
 }
 
 func (m *NewView) Reset()         { *m = NewView{} }
@@ -452,6 +449,13 @@ func (m *NewView) GetVset() map[uint64]*Signed {
 func (m *NewView) GetXset() *Subject {
 	if m != nil {
 		return m.Xset
+	}
+	return nil
+}
+
+func (m *NewView) GetBatch() *Batch {
+	if m != nil {
+		return m.Batch
 	}
 	return nil
 }
